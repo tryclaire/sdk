@@ -7,11 +7,17 @@ Node.js 22+ and ESM. No runtime dependencies.
 ## Install
 
 ```sh
-npm install github:tryclaire/sdk
+npm install @tryclaire/sdk
+pnpm add @tryclaire/sdk
+yarn add @tryclaire/sdk
+bun add @tryclaire/sdk
 ```
 
-For reproducible deployments, pin a commit: `npm install github:tryclaire/sdk#<commit-sha>`.
-Git installs build the package during packing.
+Choose the command for your package manager. Registry packages include built JavaScript and
+TypeScript declarations; no Git access or local TypeScript build is required.
+
+For unreleased development versions, install a specific Git commit:
+`npm install github:tryclaire/sdk#<commit-sha>`. Git installs build the package during packing.
 With npm 12, use `--allow-git=root` if your policy blocks direct Git dependencies.
 
 ## Quick start
@@ -163,9 +169,8 @@ Changes to the client, its contract, and examples belong in a reviewed pull requ
 
 ## Releases
 
-The first publication requires an authenticated npm maintainer with 2FA. After the package
-exists, configure its npm trusted publisher for GitHub organization `tryclaire`, repository
-`sdk`, workflow `publish.yml`, with direct publishing allowed.
+The npm package trusts GitHub organization `tryclaire`, repository `sdk`, workflow
+`publish.yml` for token-free publishing.
 
 Update `version` in `package.json` and `package-lock.json`, merge the change to `main`, and
 wait for SDK CI to pass. In GitHub Actions, run **Publish SDK** on `main` with that exact
