@@ -156,19 +156,33 @@ test('redirects are rejected without forwarding credentials', async (t) => {
 });
 
 test('timeouts and caller cancellation interrupt stalled response bodies', async (t) => {
-  let requests = 0;
-  let secondResponse;
-  const secondHeaders = new Promise((resolve) => { secondResponse = resolve; });
   const baseUrl = await serve(t, (_req, res) => {
-    requests++;
     res.writeHead(200, { 'content-type': 'application/json' });
     res.write('{"data":');
-    if (requests === 2) secondResponse();
   });
-  await assert.rejects(client(baseUrl, { timeoutMs: 30 }).context.get(), (error) => error.name === 'TimeoutError');
+  let timedRequestReceivedHeaders = false;
+  await assert.rejects(client(baseUrl, {
+    timeoutMs: 1000,
+    fetch: async (...args) => {
+      const response = await fetch(...args);
+      timedRequestReceivedHeaders = true;
+      return response;
+    },
+  }).context.get(), (error) => error.name === 'TimeoutError');
+  assert.equal(timedRequestReceivedHeaders, true);
+
+  let receivedHeaders;
+  const headersReady = new Promise((resolve) => { receivedHeaders = resolve; });
   const abort = new AbortController();
-  const pending = client(baseUrl, { timeoutMs: 5000 }).context.get({ signal: abort.signal });
-  await Promise.race([secondHeaders, pending.then(() => { throw Error('response unexpectedly completed'); }, () => { throw Error('request ended before cancellation'); })]);
+  const pending = client(baseUrl, {
+    timeoutMs: 5000,
+    fetch: async (...args) => {
+      const response = await fetch(...args);
+      receivedHeaders();
+      return response;
+    },
+  }).context.get({ signal: abort.signal });
+  await Promise.race([headersReady, pending.then(() => { throw Error('response unexpectedly completed'); }, () => { throw Error('request ended before cancellation'); })]);
   abort.abort();
   await assert.rejects(pending, (error) => error.name === 'AbortError');
 });
@@ -188,9 +202,9 @@ test('invalid credentials, origins, timeouts, IDs and query primitives fail befo
   const sdk = client(baseUrl);
   assert.doesNotMatch(JSON.stringify(sdk), /test-secret/);
   for (const id of ['', '.', '..']) {
-    await assert.rejects(async () => sdk.knowledge.get(id));
-    await assert.rejects(async () => sdk.assets.get(id));
-    await assert.rejects(async () => sdk.telegram.messages.list(id));
+    await assert.rejects(sdk.knowledge.get(id), TypeError);
+    await assert.rejects(sdk.assets.get(id), TypeError);
+    await assert.rejects(sdk.telegram.messages.list(id), TypeError);
   }
   for (const query of [{ q: null }, { q: {} }, { page: NaN }]) {
     await assert.rejects(async () => sdk.knowledge.list(query));

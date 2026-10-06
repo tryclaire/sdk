@@ -78,14 +78,14 @@ export class Claire {
   readonly knowledge = {
     list: (query: ListKnowledgeParams = {}, options?: RequestOptions) =>
       this.#get<KnowledgeListResponse>("knowledge", query, options),
-    get: (id: string, query: GetKnowledgeItemParams = {}, options?: RequestOptions) =>
+    get: async (id: string, query: GetKnowledgeItemParams = {}, options?: RequestOptions) =>
       this.#get<KnowledgeItemResponse>(`knowledge/${resourceId(id)}`, query, options),
   };
 
   readonly assets = {
     list: (query: ListAssetsParams = {}, options?: RequestOptions) =>
       this.#get<AssetsResponse>("assets", query, options),
-    get: (id: string, options?: RequestOptions) =>
+    get: async (id: string, options?: RequestOptions) =>
       this.#get<AssetResponse>(`assets/${resourceId(id)}`, {}, options),
   };
 
@@ -96,7 +96,7 @@ export class Claire {
     },
     messages: {
       /** chatId is Claire's chat UUID, not Telegram's numeric chat ID. */
-      list: (chatId: string, query: ListTelegramMessagesParams = {}, options?: RequestOptions) =>
+      list: async (chatId: string, query: ListTelegramMessagesParams = {}, options?: RequestOptions) =>
         this.#get<TelegramMessagesResponse>(`telegram/chats/${resourceId(chatId)}/messages`, query, options),
     },
   };

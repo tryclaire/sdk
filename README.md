@@ -13,8 +13,17 @@ npm install github:tryclaire/sdk
 ```
 
 For reproducible deployments, pin a commit: `npm install github:tryclaire/sdk#<commit-sha>`.
-Git installs build the package with its `prepare` script. A registry release has not been published;
+Git installs build `dist/` while npm packs the dependency, using the package's
+`prepack`/`prepare` scripts. A registry release has not been published;
 `npm install @tryclaire/sdk` is not the installation path yet.
+
+If npm 12 rejects Git dependencies with `EALLOWGIT`, explicitly allow this direct dependency:
+
+```sh
+npm install --allow-git=root github:tryclaire/sdk
+```
+
+This is a per-command permission, not a global change to your npm security settings.
 
 ## Quick start
 
