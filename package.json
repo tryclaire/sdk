@@ -20,7 +20,8 @@
     "check:types": "node scripts/generate.mjs --check",
     "test": "npm run build && node --test test/*.test.mjs",
     "test:types": "tsc -p test/tsconfig.json",
-    "check": "npm run check:types && npm test && npm run test:types",
+    "test:package": "node scripts/smoke-package.mjs",
+    "check": "npm run check:types && npm test && npm run test:types && npm run test:package",
     "prepare": "npm run build",
     "prepack": "npm run build"
   },
