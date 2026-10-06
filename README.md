@@ -1,8 +1,18 @@
 # Claire SDK
 
+[![npm](https://img.shields.io/npm/v/@tryclaire/sdk)](https://www.npmjs.com/package/@tryclaire/sdk)
+[![CI](https://github.com/tryclaire/sdk/actions/workflows/ci.yml/badge.svg?branch=main)](https://github.com/tryclaire/sdk/actions/workflows/ci.yml)
+[![Node.js](https://img.shields.io/badge/node-%3E%3D22-339933?logo=node.js&logoColor=white)](https://nodejs.org/)
+[![MIT license](https://img.shields.io/badge/license-MIT-blue)](LICENSE)
+
 TypeScript and JavaScript client for the [Claire Developer API](https://app.tryclaire.net/developers).
 Read workspace context, Knowledge, asset metadata, Telegram history, X mentions, and token data.
 Node.js 22+ and ESM. No runtime dependencies.
+
+[API reference](https://app.tryclaire.net/developers) ·
+[Documentation](https://docs.tryclaire.net/reference/developer-api) ·
+[npm](https://www.npmjs.com/package/@tryclaire/sdk) ·
+[Releases](https://github.com/tryclaire/sdk/releases)
 
 ## Install
 
