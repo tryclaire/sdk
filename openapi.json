@@ -1,0 +1,2715 @@
+{
+  "openapi": "3.1.0",
+  "info": {
+    "title": "Claire Developer API",
+    "version": "1.0.0",
+    "description": "Read-only, organization-scoped access to Claire's persisted project context. Send the API key as a Bearer token. Authenticated responses are private and revalidated with ETags; authentication, quota, and a live data read happen before any 304. X mentions never trigger a paid provider fetch. X and token reads mark the organization watched for 90 seconds so the existing worker may use its active cadence, but they never force a refresh or bypass provider budgets."
+  },
+  "servers": [
+    {
+      "url": "/",
+      "description": "Current Claire origin"
+    }
+  ],
+  "security": [
+    {
+      "bearerAuth": []
+    }
+  ],
+  "tags": [
+    {
+      "name": "Context"
+    },
+    {
+      "name": "Knowledge"
+    },
+    {
+      "name": "Assets"
+    },
+    {
+      "name": "Telegram"
+    },
+    {
+      "name": "X"
+    },
+    {
+      "name": "Token"
+    }
+  ],
+  "paths": {
+    "/api/v1/context": {
+      "get": {
+        "tags": [
+          "Context"
+        ],
+        "summary": "Read organization context",
+        "description": "Returns the credential-selected organization, granted scopes, and availability of persisted connections without calling providers.",
+        "operationId": "getContext",
+        "x-required-scope": "context:read",
+        "parameters": [],
+        "responses": {
+          "200": {
+            "description": "Current persisted data",
+            "headers": {
+              "X-Request-Id": {
+                "$ref": "#/components/headers/RequestId"
+              },
+              "RateLimit-Limit": {
+                "$ref": "#/components/headers/RateLimitLimit"
+              },
+              "RateLimit-Remaining": {
+                "$ref": "#/components/headers/RateLimitRemaining"
+              },
+              "RateLimit-Reset": {
+                "$ref": "#/components/headers/RateLimitReset"
+              },
+              "ETag": {
+                "$ref": "#/components/headers/ETag"
+              }
+            },
+            "content": {
+              "application/json": {
+                "schema": {
+                  "type": "object",
+                  "additionalProperties": false,
+                  "required": [
+                    "data",
+                    "meta"
+                  ],
+                  "properties": {
+                    "data": {
+                      "$ref": "#/components/schemas/Context"
+                    },
+                    "meta": {
+                      "type": "object",
+                      "additionalProperties": false,
+                      "required": [
+                        "organizationId",
+                        "freshness"
+                      ],
+                      "properties": {
+                        "organizationId": {
+                          "type": "string",
+                          "format": "uuid"
+                        },
+                        "freshness": {
+                          "$ref": "#/components/schemas/Freshness"
+                        }
+                      }
+                    }
+                  }
+                }
+              }
+            }
+          },
+          "304": {
+            "description": "The authenticated, rate-limited request was revalidated after a current database read and the representation is unchanged.",
+            "headers": {
+              "X-Request-Id": {
+                "$ref": "#/components/headers/RequestId"
+              },
+              "RateLimit-Limit": {
+                "$ref": "#/components/headers/RateLimitLimit"
+              },
+              "RateLimit-Remaining": {
+                "$ref": "#/components/headers/RateLimitRemaining"
+              },
+              "RateLimit-Reset": {
+                "$ref": "#/components/headers/RateLimitReset"
+              },
+              "ETag": {
+                "$ref": "#/components/headers/ETag"
+              }
+            }
+          },
+          "400": {
+            "$ref": "#/components/responses/BadRequest"
+          },
+          "401": {
+            "$ref": "#/components/responses/Unauthorized"
+          },
+          "403": {
+            "$ref": "#/components/responses/Forbidden"
+          },
+          "404": {
+            "$ref": "#/components/responses/NotFound"
+          },
+          "405": {
+            "$ref": "#/components/responses/MethodNotAllowed"
+          },
+          "413": {
+            "$ref": "#/components/responses/RequestBodyNotAllowed"
+          },
+          "429": {
+            "$ref": "#/components/responses/RateLimited"
+          },
+          "503": {
+            "$ref": "#/components/responses/ServiceUnavailable"
+          },
+          "504": {
+            "$ref": "#/components/responses/RequestTimeout"
+          }
+        }
+      }
+    },
+    "/api/v1/knowledge": {
+      "get": {
+        "tags": [
+          "Knowledge"
+        ],
+        "summary": "List canonical knowledge",
+        "description": "Searches canonical sources and notes while preserving team visibility, archival state, and human suppression. Page size is 20.",
+        "operationId": "listKnowledge",
+        "x-required-scope": "knowledge:read",
+        "parameters": [
+          {
+            "name": "q",
+            "in": "query",
+            "description": "Case-insensitive text search.",
+            "schema": {
+              "type": "string",
+              "maxLength": 200
+            }
+          },
+          {
+            "name": "kind",
+            "in": "query",
+            "schema": {
+              "type": "string",
+              "enum": [
+                "all",
+                "source",
+                "note"
+              ],
+              "default": "all"
+            }
+          },
+          {
+            "name": "visibility",
+            "in": "query",
+            "schema": {
+              "type": "string",
+              "enum": [
+                "all",
+                "public",
+                "team"
+              ],
+              "default": "all"
+            }
+          },
+          {
+            "name": "archived",
+            "in": "query",
+            "schema": {
+              "type": "boolean",
+              "default": false
+            }
+          },
+          {
+            "$ref": "#/components/parameters/Page"
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "Current persisted data",
+            "headers": {
+              "X-Request-Id": {
+                "$ref": "#/components/headers/RequestId"
+              },
+              "RateLimit-Limit": {
+                "$ref": "#/components/headers/RateLimitLimit"
+              },
+              "RateLimit-Remaining": {
+                "$ref": "#/components/headers/RateLimitRemaining"
+              },
+              "RateLimit-Reset": {
+                "$ref": "#/components/headers/RateLimitReset"
+              },
+              "ETag": {
+                "$ref": "#/components/headers/ETag"
+              }
+            },
+            "content": {
+              "application/json": {
+                "schema": {
+                  "type": "object",
+                  "additionalProperties": false,
+                  "required": [
+                    "data",
+                    "meta",
+                    "pagination"
+                  ],
+                  "properties": {
+                    "data": {
+                      "type": "array",
+                      "items": {
+                        "$ref": "#/components/schemas/KnowledgeSummary"
+                      }
+                    },
+                    "meta": {
+                      "type": "object",
+                      "additionalProperties": false,
+                      "required": [
+                        "organizationId",
+                        "freshness"
+                      ],
+                      "properties": {
+                        "organizationId": {
+                          "type": "string",
+                          "format": "uuid"
+                        },
+                        "freshness": {
+                          "$ref": "#/components/schemas/Freshness"
+                        }
+                      }
+                    },
+                    "pagination": {
+                      "$ref": "#/components/schemas/NumberedPagination"
+                    }
+                  }
+                }
+              }
+            }
+          },
+          "304": {
+            "description": "The authenticated, rate-limited request was revalidated after a current database read and the representation is unchanged.",
+            "headers": {
+              "X-Request-Id": {
+                "$ref": "#/components/headers/RequestId"
+              },
+              "RateLimit-Limit": {
+                "$ref": "#/components/headers/RateLimitLimit"
+              },
+              "RateLimit-Remaining": {
+                "$ref": "#/components/headers/RateLimitRemaining"
+              },
+              "RateLimit-Reset": {
+                "$ref": "#/components/headers/RateLimitReset"
+              },
+              "ETag": {
+                "$ref": "#/components/headers/ETag"
+              }
+            }
+          },
+          "400": {
+            "$ref": "#/components/responses/BadRequest"
+          },
+          "401": {
+            "$ref": "#/components/responses/Unauthorized"
+          },
+          "403": {
+            "$ref": "#/components/responses/Forbidden"
+          },
+          "404": {
+            "$ref": "#/components/responses/NotFound"
+          },
+          "405": {
+            "$ref": "#/components/responses/MethodNotAllowed"
+          },
+          "413": {
+            "$ref": "#/components/responses/RequestBodyNotAllowed"
+          },
+          "429": {
+            "$ref": "#/components/responses/RateLimited"
+          },
+          "503": {
+            "$ref": "#/components/responses/ServiceUnavailable"
+          },
+          "504": {
+            "$ref": "#/components/responses/RequestTimeout"
+          }
+        }
+      }
+    },
+    "/api/v1/knowledge/{id}": {
+      "get": {
+        "tags": [
+          "Knowledge"
+        ],
+        "summary": "Read one knowledge item",
+        "description": "Returns a bounded content segment. Follow contentRange.nextOffset to continue. Offsets and lengths count JavaScript UTF-16 string units. Suppressed sources remain unavailable.",
+        "operationId": "getKnowledgeItem",
+        "x-required-scope": "knowledge:read",
+        "parameters": [
+          {
+            "$ref": "#/components/parameters/KnowledgeId"
+          },
+          {
+            "name": "offset",
+            "in": "query",
+            "description": "Content offset.",
+            "schema": {
+              "type": "integer",
+              "minimum": 0,
+              "maximum": 10000000,
+              "default": 0
+            }
+          },
+          {
+            "name": "limit",
+            "in": "query",
+            "description": "Maximum content units returned.",
+            "schema": {
+              "type": "integer",
+              "minimum": 1,
+              "maximum": 50000,
+              "default": 20000
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "Current persisted data",
+            "headers": {
+              "X-Request-Id": {
+                "$ref": "#/components/headers/RequestId"
+              },
+              "RateLimit-Limit": {
+                "$ref": "#/components/headers/RateLimitLimit"
+              },
+              "RateLimit-Remaining": {
+                "$ref": "#/components/headers/RateLimitRemaining"
+              },
+              "RateLimit-Reset": {
+                "$ref": "#/components/headers/RateLimitReset"
+              },
+              "ETag": {
+                "$ref": "#/components/headers/ETag"
+              }
+            },
+            "content": {
+              "application/json": {
+                "schema": {
+                  "type": "object",
+                  "additionalProperties": false,
+                  "required": [
+                    "data",
+                    "meta"
+                  ],
+                  "properties": {
+                    "data": {
+                      "$ref": "#/components/schemas/KnowledgeItem"
+                    },
+                    "meta": {
+                      "type": "object",
+                      "additionalProperties": false,
+                      "required": [
+                        "organizationId",
+                        "freshness"
+                      ],
+                      "properties": {
+                        "organizationId": {
+                          "type": "string",
+                          "format": "uuid"
+                        },
+                        "freshness": {
+                          "$ref": "#/components/schemas/Freshness"
+                        }
+                      }
+                    }
+                  }
+                }
+              }
+            }
+          },
+          "304": {
+            "description": "The authenticated, rate-limited request was revalidated after a current database read and the representation is unchanged.",
+            "headers": {
+              "X-Request-Id": {
+                "$ref": "#/components/headers/RequestId"
+              },
+              "RateLimit-Limit": {
+                "$ref": "#/components/headers/RateLimitLimit"
+              },
+              "RateLimit-Remaining": {
+                "$ref": "#/components/headers/RateLimitRemaining"
+              },
+              "RateLimit-Reset": {
+                "$ref": "#/components/headers/RateLimitReset"
+              },
+              "ETag": {
+                "$ref": "#/components/headers/ETag"
+              }
+            }
+          },
+          "400": {
+            "$ref": "#/components/responses/BadRequest"
+          },
+          "401": {
+            "$ref": "#/components/responses/Unauthorized"
+          },
+          "403": {
+            "$ref": "#/components/responses/Forbidden"
+          },
+          "404": {
+            "$ref": "#/components/responses/NotFound"
+          },
+          "405": {
+            "$ref": "#/components/responses/MethodNotAllowed"
+          },
+          "413": {
+            "$ref": "#/components/responses/RequestBodyNotAllowed"
+          },
+          "429": {
+            "$ref": "#/components/responses/RateLimited"
+          },
+          "503": {
+            "$ref": "#/components/responses/ServiceUnavailable"
+          },
+          "504": {
+            "$ref": "#/components/responses/RequestTimeout"
+          }
+        }
+      }
+    },
+    "/api/v1/assets": {
+      "get": {
+        "tags": [
+          "Assets"
+        ],
+        "summary": "List asset metadata",
+        "description": "Lists one folder's children. Only metadata and stable URLs for deliberately public files are returned; private object keys and signed URLs are omitted. Page size is 50.",
+        "operationId": "listAssets",
+        "x-required-scope": "assets:read",
+        "parameters": [
+          {
+            "name": "folderId",
+            "in": "query",
+            "description": "Folder UUID; omit for the root.",
+            "schema": {
+              "type": "string",
+              "format": "uuid"
+            }
+          },
+          {
+            "$ref": "#/components/parameters/Page"
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "Current persisted data",
+            "headers": {
+              "X-Request-Id": {
+                "$ref": "#/components/headers/RequestId"
+              },
+              "RateLimit-Limit": {
+                "$ref": "#/components/headers/RateLimitLimit"
+              },
+              "RateLimit-Remaining": {
+                "$ref": "#/components/headers/RateLimitRemaining"
+              },
+              "RateLimit-Reset": {
+                "$ref": "#/components/headers/RateLimitReset"
+              },
+              "ETag": {
+                "$ref": "#/components/headers/ETag"
+              }
+            },
+            "content": {
+              "application/json": {
+                "schema": {
+                  "type": "object",
+                  "additionalProperties": false,
+                  "required": [
+                    "data",
+                    "meta",
+                    "pagination"
+                  ],
+                  "properties": {
+                    "data": {
+                      "type": "array",
+                      "items": {
+                        "$ref": "#/components/schemas/Asset"
+                      }
+                    },
+                    "meta": {
+                      "type": "object",
+                      "additionalProperties": false,
+                      "required": [
+                        "organizationId",
+                        "freshness"
+                      ],
+                      "properties": {
+                        "organizationId": {
+                          "type": "string",
+                          "format": "uuid"
+                        },
+                        "freshness": {
+                          "$ref": "#/components/schemas/Freshness"
+                        }
+                      }
+                    },
+                    "pagination": {
+                      "$ref": "#/components/schemas/AssetPagination"
+                    }
+                  }
+                }
+              }
+            }
+          },
+          "304": {
+            "description": "The authenticated, rate-limited request was revalidated after a current database read and the representation is unchanged.",
+            "headers": {
+              "X-Request-Id": {
+                "$ref": "#/components/headers/RequestId"
+              },
+              "RateLimit-Limit": {
+                "$ref": "#/components/headers/RateLimitLimit"
+              },
+              "RateLimit-Remaining": {
+                "$ref": "#/components/headers/RateLimitRemaining"
+              },
+              "RateLimit-Reset": {
+                "$ref": "#/components/headers/RateLimitReset"
+              },
+              "ETag": {
+                "$ref": "#/components/headers/ETag"
+              }
+            }
+          },
+          "400": {
+            "$ref": "#/components/responses/BadRequest"
+          },
+          "401": {
+            "$ref": "#/components/responses/Unauthorized"
+          },
+          "403": {
+            "$ref": "#/components/responses/Forbidden"
+          },
+          "404": {
+            "$ref": "#/components/responses/NotFound"
+          },
+          "405": {
+            "$ref": "#/components/responses/MethodNotAllowed"
+          },
+          "413": {
+            "$ref": "#/components/responses/RequestBodyNotAllowed"
+          },
+          "429": {
+            "$ref": "#/components/responses/RateLimited"
+          },
+          "503": {
+            "$ref": "#/components/responses/ServiceUnavailable"
+          },
+          "504": {
+            "$ref": "#/components/responses/RequestTimeout"
+          }
+        }
+      }
+    },
+    "/api/v1/assets/{id}": {
+      "get": {
+        "tags": [
+          "Assets"
+        ],
+        "summary": "Read asset metadata",
+        "description": "Returns metadata for one organization-owned file or folder. No private object key or signed URL is exposed.",
+        "operationId": "getAsset",
+        "x-required-scope": "assets:read",
+        "parameters": [
+          {
+            "$ref": "#/components/parameters/AssetId"
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "Current persisted data",
+            "headers": {
+              "X-Request-Id": {
+                "$ref": "#/components/headers/RequestId"
+              },
+              "RateLimit-Limit": {
+                "$ref": "#/components/headers/RateLimitLimit"
+              },
+              "RateLimit-Remaining": {
+                "$ref": "#/components/headers/RateLimitRemaining"
+              },
+              "RateLimit-Reset": {
+                "$ref": "#/components/headers/RateLimitReset"
+              },
+              "ETag": {
+                "$ref": "#/components/headers/ETag"
+              }
+            },
+            "content": {
+              "application/json": {
+                "schema": {
+                  "type": "object",
+                  "additionalProperties": false,
+                  "required": [
+                    "data",
+                    "meta"
+                  ],
+                  "properties": {
+                    "data": {
+                      "$ref": "#/components/schemas/Asset"
+                    },
+                    "meta": {
+                      "type": "object",
+                      "additionalProperties": false,
+                      "required": [
+                        "organizationId",
+                        "freshness"
+                      ],
+                      "properties": {
+                        "organizationId": {
+                          "type": "string",
+                          "format": "uuid"
+                        },
+                        "freshness": {
+                          "$ref": "#/components/schemas/Freshness"
+                        }
+                      }
+                    }
+                  }
+                }
+              }
+            }
+          },
+          "304": {
+            "description": "The authenticated, rate-limited request was revalidated after a current database read and the representation is unchanged.",
+            "headers": {
+              "X-Request-Id": {
+                "$ref": "#/components/headers/RequestId"
+              },
+              "RateLimit-Limit": {
+                "$ref": "#/components/headers/RateLimitLimit"
+              },
+              "RateLimit-Remaining": {
+                "$ref": "#/components/headers/RateLimitRemaining"
+              },
+              "RateLimit-Reset": {
+                "$ref": "#/components/headers/RateLimitReset"
+              },
+              "ETag": {
+                "$ref": "#/components/headers/ETag"
+              }
+            }
+          },
+          "400": {
+            "$ref": "#/components/responses/BadRequest"
+          },
+          "401": {
+            "$ref": "#/components/responses/Unauthorized"
+          },
+          "403": {
+            "$ref": "#/components/responses/Forbidden"
+          },
+          "404": {
+            "$ref": "#/components/responses/NotFound"
+          },
+          "405": {
+            "$ref": "#/components/responses/MethodNotAllowed"
+          },
+          "413": {
+            "$ref": "#/components/responses/RequestBodyNotAllowed"
+          },
+          "429": {
+            "$ref": "#/components/responses/RateLimited"
+          },
+          "503": {
+            "$ref": "#/components/responses/ServiceUnavailable"
+          },
+          "504": {
+            "$ref": "#/components/responses/RequestTimeout"
+          }
+        }
+      }
+    },
+    "/api/v1/telegram/chats": {
+      "get": {
+        "tags": [
+          "Telegram"
+        ],
+        "summary": "List linked chats",
+        "description": "Returns linked chat metadata and persisted message coverage. Telegram bots only retain messages observed after linking. Page size is 50.",
+        "operationId": "listTelegramChats",
+        "x-required-scope": "telegram:read",
+        "parameters": [
+          {
+            "$ref": "#/components/parameters/Page"
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "Current persisted data",
+            "headers": {
+              "X-Request-Id": {
+                "$ref": "#/components/headers/RequestId"
+              },
+              "RateLimit-Limit": {
+                "$ref": "#/components/headers/RateLimitLimit"
+              },
+              "RateLimit-Remaining": {
+                "$ref": "#/components/headers/RateLimitRemaining"
+              },
+              "RateLimit-Reset": {
+                "$ref": "#/components/headers/RateLimitReset"
+              },
+              "ETag": {
+                "$ref": "#/components/headers/ETag"
+              }
+            },
+            "content": {
+              "application/json": {
+                "schema": {
+                  "type": "object",
+                  "additionalProperties": false,
+                  "required": [
+                    "data",
+                    "meta",
+                    "pagination"
+                  ],
+                  "properties": {
+                    "data": {
+                      "type": "array",
+                      "items": {
+                        "$ref": "#/components/schemas/TelegramChat"
+                      }
+                    },
+                    "meta": {
+                      "type": "object",
+                      "additionalProperties": false,
+                      "required": [
+                        "organizationId",
+                        "freshness"
+                      ],
+                      "properties": {
+                        "organizationId": {
+                          "type": "string",
+                          "format": "uuid"
+                        },
+                        "freshness": {
+                          "$ref": "#/components/schemas/Freshness"
+                        }
+                      }
+                    },
+                    "pagination": {
+                      "$ref": "#/components/schemas/NumberedPagination"
+                    }
+                  }
+                }
+              }
+            }
+          },
+          "304": {
+            "description": "The authenticated, rate-limited request was revalidated after a current database read and the representation is unchanged.",
+            "headers": {
+              "X-Request-Id": {
+                "$ref": "#/components/headers/RequestId"
+              },
+              "RateLimit-Limit": {
+                "$ref": "#/components/headers/RateLimitLimit"
+              },
+              "RateLimit-Remaining": {
+                "$ref": "#/components/headers/RateLimitRemaining"
+              },
+              "RateLimit-Reset": {
+                "$ref": "#/components/headers/RateLimitReset"
+              },
+              "ETag": {
+                "$ref": "#/components/headers/ETag"
+              }
+            }
+          },
+          "400": {
+            "$ref": "#/components/responses/BadRequest"
+          },
+          "401": {
+            "$ref": "#/components/responses/Unauthorized"
+          },
+          "403": {
+            "$ref": "#/components/responses/Forbidden"
+          },
+          "404": {
+            "$ref": "#/components/responses/NotFound"
+          },
+          "405": {
+            "$ref": "#/components/responses/MethodNotAllowed"
+          },
+          "413": {
+            "$ref": "#/components/responses/RequestBodyNotAllowed"
+          },
+          "429": {
+            "$ref": "#/components/responses/RateLimited"
+          },
+          "503": {
+            "$ref": "#/components/responses/ServiceUnavailable"
+          },
+          "504": {
+            "$ref": "#/components/responses/RequestTimeout"
+          }
+        }
+      }
+    },
+    "/api/v1/telegram/chats/{id}/messages": {
+      "get": {
+        "tags": [
+          "Telegram"
+        ],
+        "summary": "Read persisted chat messages",
+        "description": "Returns messages already received by Claire. Search examines at most the newest 10,000 tracked messages and reports searchLimited when older history was excluded. Provider file IDs are omitted.",
+        "operationId": "listTelegramMessages",
+        "x-required-scope": "telegram:read",
+        "parameters": [
+          {
+            "$ref": "#/components/parameters/ChatId"
+          },
+          {
+            "name": "q",
+            "in": "query",
+            "description": "Case-insensitive text and file-name search.",
+            "schema": {
+              "type": "string",
+              "maxLength": 200
+            }
+          },
+          {
+            "name": "before",
+            "in": "query",
+            "description": "Return older messages before this message ID.",
+            "schema": {
+              "type": "integer",
+              "minimum": 1,
+              "maximum": 2147483647
+            }
+          },
+          {
+            "name": "limit",
+            "in": "query",
+            "schema": {
+              "type": "integer",
+              "minimum": 1,
+              "maximum": 100,
+              "default": 50
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "Current persisted data",
+            "headers": {
+              "X-Request-Id": {
+                "$ref": "#/components/headers/RequestId"
+              },
+              "RateLimit-Limit": {
+                "$ref": "#/components/headers/RateLimitLimit"
+              },
+              "RateLimit-Remaining": {
+                "$ref": "#/components/headers/RateLimitRemaining"
+              },
+              "RateLimit-Reset": {
+                "$ref": "#/components/headers/RateLimitReset"
+              },
+              "ETag": {
+                "$ref": "#/components/headers/ETag"
+              }
+            },
+            "content": {
+              "application/json": {
+                "schema": {
+                  "type": "object",
+                  "additionalProperties": false,
+                  "required": [
+                    "data",
+                    "meta",
+                    "pagination"
+                  ],
+                  "properties": {
+                    "data": {
+                      "type": "array",
+                      "items": {
+                        "$ref": "#/components/schemas/TelegramMessage"
+                      }
+                    },
+                    "meta": {
+                      "type": "object",
+                      "additionalProperties": false,
+                      "required": [
+                        "organizationId",
+                        "freshness"
+                      ],
+                      "properties": {
+                        "organizationId": {
+                          "type": "string",
+                          "format": "uuid"
+                        },
+                        "freshness": {
+                          "$ref": "#/components/schemas/Freshness"
+                        }
+                      }
+                    },
+                    "pagination": {
+                      "$ref": "#/components/schemas/MessagePagination"
+                    }
+                  }
+                }
+              }
+            }
+          },
+          "304": {
+            "description": "The authenticated, rate-limited request was revalidated after a current database read and the representation is unchanged.",
+            "headers": {
+              "X-Request-Id": {
+                "$ref": "#/components/headers/RequestId"
+              },
+              "RateLimit-Limit": {
+                "$ref": "#/components/headers/RateLimitLimit"
+              },
+              "RateLimit-Remaining": {
+                "$ref": "#/components/headers/RateLimitRemaining"
+              },
+              "RateLimit-Reset": {
+                "$ref": "#/components/headers/RateLimitReset"
+              },
+              "ETag": {
+                "$ref": "#/components/headers/ETag"
+              }
+            }
+          },
+          "400": {
+            "$ref": "#/components/responses/BadRequest"
+          },
+          "401": {
+            "$ref": "#/components/responses/Unauthorized"
+          },
+          "403": {
+            "$ref": "#/components/responses/Forbidden"
+          },
+          "404": {
+            "$ref": "#/components/responses/NotFound"
+          },
+          "405": {
+            "$ref": "#/components/responses/MethodNotAllowed"
+          },
+          "413": {
+            "$ref": "#/components/responses/RequestBodyNotAllowed"
+          },
+          "429": {
+            "$ref": "#/components/responses/RateLimited"
+          },
+          "503": {
+            "$ref": "#/components/responses/ServiceUnavailable"
+          },
+          "504": {
+            "$ref": "#/components/responses/RequestTimeout"
+          }
+        }
+      }
+    },
+    "/api/v1/x/mentions": {
+      "get": {
+        "tags": [
+          "X"
+        ],
+        "summary": "List persisted X mentions",
+        "description": "Reads the collector's stored payload and never performs a paid X request. The organization is marked watched for 90 seconds so the existing worker can use its active cadence; this request does not force collection. Page size is 20.",
+        "operationId": "listXMentions",
+        "x-required-scope": "x:read",
+        "parameters": [
+          {
+            "$ref": "#/components/parameters/Page"
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "Current persisted data",
+            "headers": {
+              "X-Request-Id": {
+                "$ref": "#/components/headers/RequestId"
+              },
+              "RateLimit-Limit": {
+                "$ref": "#/components/headers/RateLimitLimit"
+              },
+              "RateLimit-Remaining": {
+                "$ref": "#/components/headers/RateLimitRemaining"
+              },
+              "RateLimit-Reset": {
+                "$ref": "#/components/headers/RateLimitReset"
+              },
+              "ETag": {
+                "$ref": "#/components/headers/ETag"
+              }
+            },
+            "content": {
+              "application/json": {
+                "schema": {
+                  "type": "object",
+                  "additionalProperties": false,
+                  "required": [
+                    "data",
+                    "meta",
+                    "pagination"
+                  ],
+                  "properties": {
+                    "data": {
+                      "type": "array",
+                      "items": {
+                        "$ref": "#/components/schemas/XMention"
+                      }
+                    },
+                    "meta": {
+                      "type": "object",
+                      "additionalProperties": false,
+                      "required": [
+                        "organizationId",
+                        "freshness"
+                      ],
+                      "properties": {
+                        "organizationId": {
+                          "type": "string",
+                          "format": "uuid"
+                        },
+                        "freshness": {
+                          "$ref": "#/components/schemas/Freshness"
+                        }
+                      }
+                    },
+                    "pagination": {
+                      "$ref": "#/components/schemas/NumberedPagination"
+                    }
+                  }
+                }
+              }
+            }
+          },
+          "304": {
+            "description": "The authenticated, rate-limited request was revalidated after a current database read and the representation is unchanged.",
+            "headers": {
+              "X-Request-Id": {
+                "$ref": "#/components/headers/RequestId"
+              },
+              "RateLimit-Limit": {
+                "$ref": "#/components/headers/RateLimitLimit"
+              },
+              "RateLimit-Remaining": {
+                "$ref": "#/components/headers/RateLimitRemaining"
+              },
+              "RateLimit-Reset": {
+                "$ref": "#/components/headers/RateLimitReset"
+              },
+              "ETag": {
+                "$ref": "#/components/headers/ETag"
+              }
+            }
+          },
+          "400": {
+            "$ref": "#/components/responses/BadRequest"
+          },
+          "401": {
+            "$ref": "#/components/responses/Unauthorized"
+          },
+          "403": {
+            "$ref": "#/components/responses/Forbidden"
+          },
+          "404": {
+            "$ref": "#/components/responses/NotFound"
+          },
+          "405": {
+            "$ref": "#/components/responses/MethodNotAllowed"
+          },
+          "413": {
+            "$ref": "#/components/responses/RequestBodyNotAllowed"
+          },
+          "429": {
+            "$ref": "#/components/responses/RateLimited"
+          },
+          "503": {
+            "$ref": "#/components/responses/ServiceUnavailable"
+          },
+          "504": {
+            "$ref": "#/components/responses/RequestTimeout"
+          }
+        }
+      }
+    },
+    "/api/v1/token": {
+      "get": {
+        "tags": [
+          "Token"
+        ],
+        "summary": "Read persisted token summary",
+        "description": "Returns linked-token metadata, transfer-index coverage, holder totals, and the latest stored fee snapshot. It makes no RPC or market-provider request. The organization is marked watched for 90 seconds so the budgeted worker can use its active cadence; this request does not force collection.",
+        "operationId": "getToken",
+        "x-required-scope": "token:read",
+        "parameters": [],
+        "responses": {
+          "200": {
+            "description": "Current persisted data",
+            "headers": {
+              "X-Request-Id": {
+                "$ref": "#/components/headers/RequestId"
+              },
+              "RateLimit-Limit": {
+                "$ref": "#/components/headers/RateLimitLimit"
+              },
+              "RateLimit-Remaining": {
+                "$ref": "#/components/headers/RateLimitRemaining"
+              },
+              "RateLimit-Reset": {
+                "$ref": "#/components/headers/RateLimitReset"
+              },
+              "ETag": {
+                "$ref": "#/components/headers/ETag"
+              }
+            },
+            "content": {
+              "application/json": {
+                "schema": {
+                  "type": "object",
+                  "additionalProperties": false,
+                  "required": [
+                    "data",
+                    "meta"
+                  ],
+                  "properties": {
+                    "data": {
+                      "$ref": "#/components/schemas/TokenSummary"
+                    },
+                    "meta": {
+                      "type": "object",
+                      "additionalProperties": false,
+                      "required": [
+                        "organizationId",
+                        "freshness"
+                      ],
+                      "properties": {
+                        "organizationId": {
+                          "type": "string",
+                          "format": "uuid"
+                        },
+                        "freshness": {
+                          "$ref": "#/components/schemas/Freshness"
+                        }
+                      }
+                    }
+                  }
+                }
+              }
+            }
+          },
+          "304": {
+            "description": "The authenticated, rate-limited request was revalidated after a current database read and the representation is unchanged.",
+            "headers": {
+              "X-Request-Id": {
+                "$ref": "#/components/headers/RequestId"
+              },
+              "RateLimit-Limit": {
+                "$ref": "#/components/headers/RateLimitLimit"
+              },
+              "RateLimit-Remaining": {
+                "$ref": "#/components/headers/RateLimitRemaining"
+              },
+              "RateLimit-Reset": {
+                "$ref": "#/components/headers/RateLimitReset"
+              },
+              "ETag": {
+                "$ref": "#/components/headers/ETag"
+              }
+            }
+          },
+          "400": {
+            "$ref": "#/components/responses/BadRequest"
+          },
+          "401": {
+            "$ref": "#/components/responses/Unauthorized"
+          },
+          "403": {
+            "$ref": "#/components/responses/Forbidden"
+          },
+          "404": {
+            "$ref": "#/components/responses/NotFound"
+          },
+          "405": {
+            "$ref": "#/components/responses/MethodNotAllowed"
+          },
+          "413": {
+            "$ref": "#/components/responses/RequestBodyNotAllowed"
+          },
+          "429": {
+            "$ref": "#/components/responses/RateLimited"
+          },
+          "503": {
+            "$ref": "#/components/responses/ServiceUnavailable"
+          },
+          "504": {
+            "$ref": "#/components/responses/RequestTimeout"
+          }
+        }
+      }
+    }
+  },
+  "components": {
+    "securitySchemes": {
+      "bearerAuth": {
+        "type": "http",
+        "scheme": "bearer",
+        "bearerFormat": "Claire API key",
+        "description": "An organization-scoped Claire API key. The key issuer must remain an owner or admin."
+      }
+    },
+    "headers": {
+      "RequestId": {
+        "description": "Opaque support identifier for this request.",
+        "schema": {
+          "type": "string",
+          "format": "uuid"
+        }
+      },
+      "RateLimitLimit": {
+        "description": "Per-key request limit for the active window.",
+        "schema": {
+          "type": "integer"
+        }
+      },
+      "RateLimitRemaining": {
+        "description": "Requests remaining after this request.",
+        "schema": {
+          "type": "integer",
+          "minimum": 0
+        }
+      },
+      "RateLimitReset": {
+        "description": "Seconds until the active rate-limit window resets.",
+        "schema": {
+          "type": "integer",
+          "minimum": 0
+        }
+      },
+      "ETag": {
+        "description": "Validator for the stable response representation.",
+        "schema": {
+          "type": "string"
+        }
+      }
+    },
+    "parameters": {
+      "Page": {
+        "name": "page",
+        "in": "query",
+        "description": "One-based page number.",
+        "schema": {
+          "type": "integer",
+          "minimum": 1,
+          "maximum": 10000,
+          "default": 1
+        }
+      },
+      "KnowledgeId": {
+        "name": "id",
+        "in": "path",
+        "required": true,
+        "description": "Stable kind-prefixed knowledge ID returned by the list endpoint.",
+        "schema": {
+          "type": "string",
+          "pattern": "^(?:(?:docs|assets|profile|note):[0-9a-fA-F]{8}(?:-[0-9a-fA-F]{4}){3}-[0-9a-fA-F]{12}|chain:0x[0-9a-f]{40})$"
+        }
+      },
+      "AssetId": {
+        "name": "id",
+        "in": "path",
+        "required": true,
+        "schema": {
+          "type": "string",
+          "format": "uuid"
+        }
+      },
+      "ChatId": {
+        "name": "id",
+        "in": "path",
+        "required": true,
+        "schema": {
+          "type": "string",
+          "format": "uuid"
+        }
+      }
+    },
+    "responses": {
+      "BadRequest": {
+        "description": "Invalid or unknown query parameter.",
+        "headers": {
+          "X-Request-Id": {
+            "$ref": "#/components/headers/RequestId"
+          },
+          "RateLimit-Limit": {
+            "$ref": "#/components/headers/RateLimitLimit"
+          },
+          "RateLimit-Remaining": {
+            "$ref": "#/components/headers/RateLimitRemaining"
+          },
+          "RateLimit-Reset": {
+            "$ref": "#/components/headers/RateLimitReset"
+          }
+        },
+        "content": {
+          "application/json": {
+            "schema": {
+              "$ref": "#/components/schemas/Error"
+            }
+          }
+        }
+      },
+      "Unauthorized": {
+        "description": "Missing, invalid, expired, revoked, or ineligible credential.",
+        "headers": {
+          "X-Request-Id": {
+            "$ref": "#/components/headers/RequestId"
+          }
+        },
+        "content": {
+          "application/json": {
+            "schema": {
+              "$ref": "#/components/schemas/Error"
+            }
+          }
+        }
+      },
+      "Forbidden": {
+        "description": "The credential lacks the required scope.",
+        "headers": {
+          "X-Request-Id": {
+            "$ref": "#/components/headers/RequestId"
+          },
+          "RateLimit-Limit": {
+            "$ref": "#/components/headers/RateLimitLimit"
+          },
+          "RateLimit-Remaining": {
+            "$ref": "#/components/headers/RateLimitRemaining"
+          },
+          "RateLimit-Reset": {
+            "$ref": "#/components/headers/RateLimitReset"
+          }
+        },
+        "content": {
+          "application/json": {
+            "schema": {
+              "$ref": "#/components/schemas/Error"
+            }
+          }
+        }
+      },
+      "NotFound": {
+        "description": "The organization-owned resource was not found.",
+        "headers": {
+          "X-Request-Id": {
+            "$ref": "#/components/headers/RequestId"
+          },
+          "RateLimit-Limit": {
+            "$ref": "#/components/headers/RateLimitLimit"
+          },
+          "RateLimit-Remaining": {
+            "$ref": "#/components/headers/RateLimitRemaining"
+          },
+          "RateLimit-Reset": {
+            "$ref": "#/components/headers/RateLimitReset"
+          }
+        },
+        "content": {
+          "application/json": {
+            "schema": {
+              "$ref": "#/components/schemas/Error"
+            }
+          }
+        }
+      },
+      "MethodNotAllowed": {
+        "description": "Only GET and HEAD are supported.",
+        "headers": {
+          "X-Request-Id": {
+            "$ref": "#/components/headers/RequestId"
+          },
+          "Allow": {
+            "description": "Allowed methods.",
+            "schema": {
+              "type": "string",
+              "const": "GET, HEAD"
+            }
+          }
+        },
+        "content": {
+          "application/json": {
+            "schema": {
+              "$ref": "#/components/schemas/Error"
+            }
+          }
+        }
+      },
+      "RequestBodyNotAllowed": {
+        "description": "Read endpoints do not accept request bodies.",
+        "headers": {
+          "X-Request-Id": {
+            "$ref": "#/components/headers/RequestId"
+          }
+        },
+        "content": {
+          "application/json": {
+            "schema": {
+              "$ref": "#/components/schemas/Error"
+            }
+          }
+        }
+      },
+      "RateLimited": {
+        "description": "A shared per-key, per-organization or IP rate limit was exceeded.",
+        "headers": {
+          "X-Request-Id": {
+            "$ref": "#/components/headers/RequestId"
+          },
+          "RateLimit-Limit": {
+            "$ref": "#/components/headers/RateLimitLimit"
+          },
+          "RateLimit-Remaining": {
+            "$ref": "#/components/headers/RateLimitRemaining"
+          },
+          "RateLimit-Reset": {
+            "$ref": "#/components/headers/RateLimitReset"
+          },
+          "Retry-After": {
+            "description": "Seconds until retry.",
+            "schema": {
+              "type": "integer",
+              "minimum": 0
+            }
+          }
+        },
+        "content": {
+          "application/json": {
+            "schema": {
+              "$ref": "#/components/schemas/Error"
+            }
+          }
+        }
+      },
+      "ServiceUnavailable": {
+        "description": "A required database, Redis or service operation could not be completed.",
+        "headers": {
+          "X-Request-Id": {
+            "$ref": "#/components/headers/RequestId"
+          },
+          "RateLimit-Limit": {
+            "$ref": "#/components/headers/RateLimitLimit"
+          },
+          "RateLimit-Remaining": {
+            "$ref": "#/components/headers/RateLimitRemaining"
+          },
+          "RateLimit-Reset": {
+            "$ref": "#/components/headers/RateLimitReset"
+          }
+        },
+        "content": {
+          "application/json": {
+            "schema": {
+              "$ref": "#/components/schemas/Error"
+            }
+          }
+        }
+      },
+      "RequestTimeout": {
+        "description": "Request processing exceeded the allowed time.",
+        "headers": {
+          "X-Request-Id": {
+            "$ref": "#/components/headers/RequestId"
+          }
+        },
+        "content": {
+          "application/json": {
+            "schema": {
+              "$ref": "#/components/schemas/Error"
+            }
+          }
+        }
+      }
+    },
+    "schemas": {
+      "Freshness": {
+        "type": "object",
+        "additionalProperties": false,
+        "required": [
+          "source",
+          "updatedAt",
+          "status"
+        ],
+        "properties": {
+          "source": {
+            "type": "string",
+            "enum": [
+              "database",
+              "collector",
+              "provider",
+              "local_preview"
+            ]
+          },
+          "updatedAt": {
+            "type": [
+              "string",
+              "null"
+            ],
+            "format": "date-time"
+          },
+          "status": {
+            "type": "string",
+            "enum": [
+              "current",
+              "stale",
+              "unavailable",
+              "synthetic"
+            ]
+          },
+          "note": {
+            "type": "string"
+          }
+        }
+      },
+      "Error": {
+        "type": "object",
+        "additionalProperties": false,
+        "required": [
+          "error",
+          "requestId"
+        ],
+        "properties": {
+          "error": {
+            "type": "object",
+            "additionalProperties": false,
+            "required": [
+              "code",
+              "message"
+            ],
+            "properties": {
+              "code": {
+                "type": "string"
+              },
+              "message": {
+                "type": "string"
+              }
+            }
+          },
+          "requestId": {
+            "type": "string",
+            "format": "uuid"
+          }
+        }
+      },
+      "NumberedPagination": {
+        "type": "object",
+        "required": [
+          "page",
+          "pageSize",
+          "total",
+          "totalPages",
+          "hasNextPage"
+        ],
+        "properties": {
+          "page": {
+            "type": "integer",
+            "minimum": 1
+          },
+          "pageSize": {
+            "type": "integer",
+            "minimum": 1
+          },
+          "total": {
+            "type": "integer",
+            "minimum": 0
+          },
+          "totalPages": {
+            "type": "integer",
+            "minimum": 0
+          },
+          "hasNextPage": {
+            "type": "boolean"
+          }
+        }
+      },
+      "Context": {
+        "type": "object",
+        "additionalProperties": false,
+        "required": [
+          "organization",
+          "grantedScopes",
+          "connections"
+        ],
+        "properties": {
+          "organization": {
+            "type": "object",
+            "additionalProperties": false,
+            "required": [
+              "id",
+              "displayName",
+              "slug",
+              "createdAt",
+              "updatedAt"
+            ],
+            "properties": {
+              "id": {
+                "type": "string",
+                "format": "uuid"
+              },
+              "displayName": {
+                "type": "string"
+              },
+              "slug": {
+                "type": "string"
+              },
+              "createdAt": {
+                "type": "string",
+                "format": "date-time"
+              },
+              "updatedAt": {
+                "type": "string",
+                "format": "date-time"
+              }
+            }
+          },
+          "grantedScopes": {
+            "type": "array",
+            "items": {
+              "$ref": "#/components/schemas/Scope"
+            },
+            "uniqueItems": true
+          },
+          "connections": {
+            "type": "object",
+            "additionalProperties": false,
+            "required": [
+              "knowledge",
+              "assets",
+              "telegram",
+              "x",
+              "token"
+            ],
+            "properties": {
+              "knowledge": {
+                "type": "object",
+                "required": [
+                  "available",
+                  "docs"
+                ],
+                "properties": {
+                  "available": {
+                    "type": "boolean"
+                  },
+                  "docs": {
+                    "$ref": "#/components/schemas/ConnectionState"
+                  }
+                }
+              },
+              "assets": {
+                "type": "object",
+                "required": [
+                  "available",
+                  "itemCount",
+                  "updatedAt"
+                ],
+                "properties": {
+                  "available": {
+                    "type": "boolean"
+                  },
+                  "itemCount": {
+                    "type": "integer",
+                    "minimum": 0
+                  },
+                  "updatedAt": {
+                    "type": [
+                      "string",
+                      "null"
+                    ],
+                    "format": "date-time"
+                  }
+                }
+              },
+              "telegram": {
+                "allOf": [
+                  {
+                    "$ref": "#/components/schemas/ConnectionState"
+                  },
+                  {
+                    "type": "object",
+                    "required": [
+                      "chatCount"
+                    ],
+                    "properties": {
+                      "chatCount": {
+                        "type": "integer",
+                        "minimum": 0
+                      }
+                    }
+                  }
+                ]
+              },
+              "x": {
+                "allOf": [
+                  {
+                    "$ref": "#/components/schemas/ConnectionState"
+                  },
+                  {
+                    "type": "object",
+                    "required": [
+                      "username"
+                    ],
+                    "properties": {
+                      "username": {
+                        "type": [
+                          "string",
+                          "null"
+                        ]
+                      }
+                    }
+                  }
+                ]
+              },
+              "token": {
+                "allOf": [
+                  {
+                    "$ref": "#/components/schemas/ConnectionState"
+                  },
+                  {
+                    "type": "object",
+                    "required": [
+                      "address",
+                      "symbol"
+                    ],
+                    "properties": {
+                      "address": {
+                        "type": [
+                          "string",
+                          "null"
+                        ]
+                      },
+                      "symbol": {
+                        "type": [
+                          "string",
+                          "null"
+                        ]
+                      }
+                    }
+                  }
+                ]
+              }
+            }
+          }
+        }
+      },
+      "ConnectionState": {
+        "type": "object",
+        "required": [
+          "connected",
+          "status",
+          "updatedAt"
+        ],
+        "properties": {
+          "connected": {
+            "type": "boolean"
+          },
+          "status": {
+            "type": "string",
+            "enum": [
+              "available",
+              "current",
+              "stale",
+              "unavailable",
+              "synthetic",
+              "error"
+            ]
+          },
+          "updatedAt": {
+            "type": [
+              "string",
+              "null"
+            ],
+            "format": "date-time"
+          }
+        }
+      },
+      "Scope": {
+        "type": "string",
+        "enum": [
+          "context:read",
+          "knowledge:read",
+          "assets:read",
+          "telegram:read",
+          "x:read",
+          "token:read"
+        ]
+      },
+      "KnowledgeSummary": {
+        "type": "object",
+        "required": [
+          "id",
+          "title",
+          "kind",
+          "source",
+          "preview",
+          "visibility",
+          "archived",
+          "sourceStatus",
+          "sourceLabel",
+          "sourceHref",
+          "createdAt",
+          "updatedAt"
+        ],
+        "properties": {
+          "id": {
+            "type": "string"
+          },
+          "title": {
+            "type": "string"
+          },
+          "kind": {
+            "type": "string",
+            "enum": [
+              "source",
+              "note"
+            ]
+          },
+          "source": {
+            "type": "string",
+            "enum": [
+              "docs",
+              "assets",
+              "chain",
+              "profile",
+              "team",
+              "answer"
+            ]
+          },
+          "preview": {
+            "type": "string"
+          },
+          "visibility": {
+            "type": "string",
+            "enum": [
+              "public",
+              "team"
+            ]
+          },
+          "archived": {
+            "type": "boolean"
+          },
+          "sourceStatus": {
+            "type": "string",
+            "enum": [
+              "current",
+              "draft",
+              "removed",
+              "unavailable",
+              "reference"
+            ]
+          },
+          "sourceLabel": {
+            "type": "string"
+          },
+          "sourceHref": {
+            "type": [
+              "string",
+              "null"
+            ]
+          },
+          "createdAt": {
+            "type": "string",
+            "format": "date-time"
+          },
+          "updatedAt": {
+            "type": "string",
+            "format": "date-time"
+          }
+        }
+      },
+      "KnowledgeItem": {
+        "unevaluatedProperties": false,
+        "allOf": [
+          {
+            "$ref": "#/components/schemas/KnowledgeSummary"
+          },
+          {
+            "type": "object",
+            "required": [
+              "content",
+              "contentFormat",
+              "contentRange"
+            ],
+            "properties": {
+              "content": {
+                "type": "string"
+              },
+              "contentFormat": {
+                "type": "string",
+                "enum": [
+                  "markdown",
+                  "plain_text"
+                ]
+              },
+              "contentRange": {
+                "type": "object",
+                "additionalProperties": false,
+                "required": [
+                  "offset",
+                  "length",
+                  "total",
+                  "nextOffset"
+                ],
+                "properties": {
+                  "offset": {
+                    "type": "integer",
+                    "minimum": 0
+                  },
+                  "length": {
+                    "type": "integer",
+                    "minimum": 0
+                  },
+                  "total": {
+                    "type": "integer",
+                    "minimum": 0
+                  },
+                  "nextOffset": {
+                    "type": [
+                      "integer",
+                      "null"
+                    ],
+                    "minimum": 0
+                  }
+                }
+              }
+            }
+          }
+        ]
+      },
+      "Asset": {
+        "type": "object",
+        "additionalProperties": false,
+        "required": [
+          "id",
+          "parentId",
+          "kind",
+          "name",
+          "mime",
+          "bytes",
+          "public",
+          "publicUrl",
+          "uploadedBy",
+          "createdAt",
+          "updatedAt"
+        ],
+        "properties": {
+          "id": {
+            "type": "string",
+            "format": "uuid"
+          },
+          "parentId": {
+            "type": [
+              "string",
+              "null"
+            ],
+            "format": "uuid"
+          },
+          "kind": {
+            "type": "string",
+            "enum": [
+              "folder",
+              "file"
+            ]
+          },
+          "name": {
+            "type": "string"
+          },
+          "mime": {
+            "type": [
+              "string",
+              "null"
+            ]
+          },
+          "bytes": {
+            "type": "integer",
+            "minimum": 0
+          },
+          "public": {
+            "type": "boolean"
+          },
+          "publicUrl": {
+            "type": [
+              "string",
+              "null"
+            ]
+          },
+          "uploadedBy": {
+            "oneOf": [
+              {
+                "type": "null"
+              },
+              {
+                "type": "object",
+                "additionalProperties": false,
+                "required": [
+                  "id",
+                  "displayName"
+                ],
+                "properties": {
+                  "id": {
+                    "type": "string",
+                    "format": "uuid"
+                  },
+                  "displayName": {
+                    "type": [
+                      "string",
+                      "null"
+                    ]
+                  }
+                }
+              }
+            ]
+          },
+          "createdAt": {
+            "type": "string",
+            "format": "date-time"
+          },
+          "updatedAt": {
+            "type": "string",
+            "format": "date-time"
+          }
+        }
+      },
+      "AssetPagination": {
+        "unevaluatedProperties": false,
+        "allOf": [
+          {
+            "$ref": "#/components/schemas/NumberedPagination"
+          },
+          {
+            "type": "object",
+            "required": [
+              "folderId",
+              "folderName"
+            ],
+            "properties": {
+              "folderId": {
+                "type": [
+                  "string",
+                  "null"
+                ],
+                "format": "uuid"
+              },
+              "folderName": {
+                "type": [
+                  "string",
+                  "null"
+                ]
+              }
+            }
+          }
+        ]
+      },
+      "TelegramChat": {
+        "type": "object",
+        "additionalProperties": false,
+        "required": [
+          "id",
+          "type",
+          "title",
+          "username",
+          "memberCount",
+          "trackedMessageCount",
+          "lastMessageAt",
+          "linkedAt",
+          "updatedAt"
+        ],
+        "properties": {
+          "id": {
+            "type": "string",
+            "format": "uuid"
+          },
+          "type": {
+            "type": "string",
+            "enum": [
+              "group",
+              "supergroup",
+              "channel"
+            ]
+          },
+          "title": {
+            "type": "string"
+          },
+          "username": {
+            "type": [
+              "string",
+              "null"
+            ]
+          },
+          "memberCount": {
+            "type": "integer",
+            "minimum": 0
+          },
+          "trackedMessageCount": {
+            "type": "integer",
+            "minimum": 0
+          },
+          "lastMessageAt": {
+            "type": [
+              "string",
+              "null"
+            ],
+            "format": "date-time"
+          },
+          "linkedAt": {
+            "type": "string",
+            "format": "date-time"
+          },
+          "updatedAt": {
+            "type": "string",
+            "format": "date-time"
+          }
+        }
+      },
+      "TelegramMessage": {
+        "type": "object",
+        "additionalProperties": false,
+        "required": [
+          "id",
+          "sender",
+          "kind",
+          "text",
+          "detail",
+          "file",
+          "replyToMessageId",
+          "sentAt",
+          "editedAt"
+        ],
+        "properties": {
+          "id": {
+            "type": "integer",
+            "minimum": 1
+          },
+          "sender": {
+            "type": "object",
+            "additionalProperties": false,
+            "required": [
+              "id",
+              "name",
+              "username"
+            ],
+            "properties": {
+              "id": {
+                "type": [
+                  "string",
+                  "null"
+                ]
+              },
+              "name": {
+                "type": "string"
+              },
+              "username": {
+                "type": [
+                  "string",
+                  "null"
+                ]
+              }
+            }
+          },
+          "kind": {
+            "type": "string",
+            "enum": [
+              "text",
+              "photo",
+              "video",
+              "animation",
+              "sticker",
+              "document",
+              "voice",
+              "audio",
+              "poll",
+              "other"
+            ]
+          },
+          "text": {
+            "type": [
+              "string",
+              "null"
+            ]
+          },
+          "detail": {
+            "type": [
+              "string",
+              "null"
+            ]
+          },
+          "file": {
+            "oneOf": [
+              {
+                "type": "null"
+              },
+              {
+                "type": "object",
+                "additionalProperties": false,
+                "required": [
+                  "width",
+                  "height",
+                  "duration",
+                  "mimeType",
+                  "fileName",
+                  "fileSize",
+                  "sticker"
+                ],
+                "properties": {
+                  "width": {
+                    "type": [
+                      "integer",
+                      "null"
+                    ]
+                  },
+                  "height": {
+                    "type": [
+                      "integer",
+                      "null"
+                    ]
+                  },
+                  "duration": {
+                    "type": [
+                      "integer",
+                      "null"
+                    ]
+                  },
+                  "mimeType": {
+                    "type": [
+                      "string",
+                      "null"
+                    ]
+                  },
+                  "fileName": {
+                    "type": [
+                      "string",
+                      "null"
+                    ]
+                  },
+                  "fileSize": {
+                    "type": [
+                      "integer",
+                      "null"
+                    ]
+                  },
+                  "sticker": {
+                    "type": [
+                      "string",
+                      "null"
+                    ],
+                    "enum": [
+                      "static",
+                      "animated",
+                      "video",
+                      null
+                    ]
+                  }
+                }
+              }
+            ]
+          },
+          "replyToMessageId": {
+            "type": [
+              "integer",
+              "null"
+            ]
+          },
+          "sentAt": {
+            "type": "string",
+            "format": "date-time"
+          },
+          "editedAt": {
+            "type": [
+              "string",
+              "null"
+            ],
+            "format": "date-time"
+          }
+        }
+      },
+      "MessagePagination": {
+        "type": "object",
+        "additionalProperties": false,
+        "required": [
+          "limit",
+          "hasMore",
+          "nextBefore",
+          "searchLimited"
+        ],
+        "properties": {
+          "limit": {
+            "type": "integer",
+            "minimum": 1,
+            "maximum": 100
+          },
+          "hasMore": {
+            "type": "boolean"
+          },
+          "nextBefore": {
+            "type": [
+              "integer",
+              "null"
+            ]
+          },
+          "searchLimited": {
+            "type": "boolean"
+          }
+        }
+      },
+      "XMention": {
+        "type": "object",
+        "additionalProperties": false,
+        "required": [
+          "id",
+          "url",
+          "text",
+          "createdAt",
+          "metrics",
+          "isReply",
+          "isRepost",
+          "author",
+          "media",
+          "quoted"
+        ],
+        "properties": {
+          "id": {
+            "type": "string"
+          },
+          "url": {
+            "type": "string",
+            "format": "uri"
+          },
+          "text": {
+            "type": "string"
+          },
+          "createdAt": {
+            "type": "string",
+            "format": "date-time"
+          },
+          "metrics": {
+            "type": "object",
+            "additionalProperties": false,
+            "required": [
+              "likes",
+              "reposts",
+              "replies",
+              "quotes",
+              "views"
+            ],
+            "properties": {
+              "likes": {
+                "type": "integer"
+              },
+              "reposts": {
+                "type": "integer"
+              },
+              "replies": {
+                "type": "integer"
+              },
+              "quotes": {
+                "type": "integer"
+              },
+              "views": {
+                "type": "integer"
+              }
+            }
+          },
+          "isReply": {
+            "type": "boolean"
+          },
+          "isRepost": {
+            "type": "boolean"
+          },
+          "author": {
+            "$ref": "#/components/schemas/XAuthor"
+          },
+          "media": {
+            "type": "array",
+            "items": {
+              "type": "object",
+              "additionalProperties": false,
+              "required": [
+                "type",
+                "url",
+                "previewUrl"
+              ],
+              "properties": {
+                "type": {
+                  "type": "string",
+                  "enum": [
+                    "photo",
+                    "video",
+                    "gif"
+                  ]
+                },
+                "url": {
+                  "type": "string"
+                },
+                "previewUrl": {
+                  "type": "string"
+                }
+              }
+            }
+          },
+          "quoted": {
+            "oneOf": [
+              {
+                "type": "null"
+              },
+              {
+                "type": "object",
+                "additionalProperties": false,
+                "required": [
+                  "author",
+                  "text",
+                  "url"
+                ],
+                "properties": {
+                  "author": {
+                    "$ref": "#/components/schemas/XAuthor"
+                  },
+                  "text": {
+                    "type": "string"
+                  },
+                  "url": {
+                    "type": "string",
+                    "format": "uri"
+                  }
+                }
+              }
+            ]
+          }
+        }
+      },
+      "XAuthor": {
+        "type": "object",
+        "additionalProperties": false,
+        "required": [
+          "id",
+          "username",
+          "name",
+          "verified"
+        ],
+        "properties": {
+          "id": {
+            "type": "string"
+          },
+          "username": {
+            "type": "string"
+          },
+          "name": {
+            "type": "string"
+          },
+          "verified": {
+            "type": "boolean"
+          }
+        }
+      },
+      "TokenSourceFreshness": {
+        "type": "object",
+        "additionalProperties": false,
+        "required": [
+          "updatedAt",
+          "status"
+        ],
+        "properties": {
+          "updatedAt": {
+            "type": [
+              "string",
+              "null"
+            ],
+            "format": "date-time"
+          },
+          "status": {
+            "type": "string",
+            "enum": [
+              "current",
+              "stale",
+              "unavailable",
+              "synthetic"
+            ]
+          },
+          "note": {
+            "type": "string"
+          }
+        }
+      },
+      "TokenSummary": {
+        "type": "object",
+        "additionalProperties": false,
+        "required": [
+          "connected",
+          "token",
+          "index",
+          "holders",
+          "latestFees",
+          "latestTradeAt",
+          "sources"
+        ],
+        "properties": {
+          "connected": {
+            "type": "boolean"
+          },
+          "token": {
+            "oneOf": [
+              {
+                "type": "null"
+              },
+              {
+                "type": "object",
+                "additionalProperties": false,
+                "required": [
+                  "address",
+                  "name",
+                  "symbol",
+                  "pool",
+                  "deployer",
+                  "logoUrl"
+                ],
+                "properties": {
+                  "address": {
+                    "type": "string"
+                  },
+                  "name": {
+                    "type": "string"
+                  },
+                  "symbol": {
+                    "type": "string"
+                  },
+                  "pool": {
+                    "type": "string"
+                  },
+                  "deployer": {
+                    "type": "string"
+                  },
+                  "logoUrl": {
+                    "type": [
+                      "string",
+                      "null"
+                    ]
+                  }
+                }
+              }
+            ]
+          },
+          "index": {
+            "oneOf": [
+              {
+                "type": "null"
+              },
+              {
+                "type": "object",
+                "additionalProperties": false,
+                "required": [
+                  "indexedTo",
+                  "indexedAt",
+                  "nextSyncAt",
+                  "state"
+                ],
+                "properties": {
+                  "indexedTo": {
+                    "type": "integer"
+                  },
+                  "indexedAt": {
+                    "type": "string",
+                    "format": "date-time"
+                  },
+                  "nextSyncAt": {
+                    "type": "string",
+                    "format": "date-time"
+                  },
+                  "state": {
+                    "type": "string",
+                    "enum": [
+                      "ready",
+                      "collecting",
+                      "error"
+                    ]
+                  }
+                }
+              }
+            ]
+          },
+          "holders": {
+            "description": "Positive tracked balances, excluding the pool, factory, zero and burn addresses. Raw balances use 18 decimal places.",
+            "oneOf": [
+              {
+                "type": "null"
+              },
+              {
+                "type": "object",
+                "additionalProperties": false,
+                "required": [
+                  "count",
+                  "trackedBalanceRaw"
+                ],
+                "properties": {
+                  "count": {
+                    "type": "integer",
+                    "minimum": 0
+                  },
+                  "trackedBalanceRaw": {
+                    "type": "string",
+                    "pattern": "^[0-9]+$"
+                  }
+                }
+              }
+            ]
+          },
+          "latestFees": {
+            "oneOf": [
+              {
+                "type": "null"
+              },
+              {
+                "type": "object",
+                "additionalProperties": false,
+                "required": [
+                  "takenAt",
+                  "priceUsd",
+                  "ethUsd",
+                  "unclaimedEth",
+                  "unclaimedToken"
+                ],
+                "properties": {
+                  "takenAt": {
+                    "type": "string",
+                    "format": "date-time"
+                  },
+                  "priceUsd": {
+                    "type": "number"
+                  },
+                  "ethUsd": {
+                    "type": "number"
+                  },
+                  "unclaimedEth": {
+                    "type": "number"
+                  },
+                  "unclaimedToken": {
+                    "type": "number"
+                  }
+                }
+              }
+            ]
+          },
+          "latestTradeAt": {
+            "type": [
+              "string",
+              "null"
+            ],
+            "format": "date-time"
+          },
+          "sources": {
+            "type": "object",
+            "additionalProperties": false,
+            "required": [
+              "transfers",
+              "fees"
+            ],
+            "properties": {
+              "transfers": {
+                "$ref": "#/components/schemas/TokenSourceFreshness"
+              },
+              "fees": {
+                "$ref": "#/components/schemas/TokenSourceFreshness"
+              }
+            }
+          }
+        }
+      }
+    }
+  }
+}
