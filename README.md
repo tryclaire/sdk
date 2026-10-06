@@ -6,24 +6,19 @@ Node.js 22+ and ESM. No runtime dependencies.
 
 ## Install
 
-Install from this public repository:
-
 ```sh
-npm install github:tryclaire/sdk
+npm install @tryclaire/sdk
+pnpm add @tryclaire/sdk
+yarn add @tryclaire/sdk
+bun add @tryclaire/sdk
 ```
 
-For reproducible deployments, pin a commit: `npm install github:tryclaire/sdk#<commit-sha>`.
-Git installs build `dist/` while npm packs the dependency, using the package's
-`prepack`/`prepare` scripts. A registry release has not been published;
-`npm install @tryclaire/sdk` is not the installation path yet.
+Choose the command for your package manager. Registry packages include built JavaScript and
+TypeScript declarations; no Git access or local TypeScript build is required.
 
-If npm 12 rejects Git dependencies with `EALLOWGIT`, explicitly allow this direct dependency:
-
-```sh
-npm install --allow-git=root github:tryclaire/sdk
-```
-
-This is a per-command permission, not a global change to your npm security settings.
+For unreleased development versions, install a specific Git commit:
+`npm install github:tryclaire/sdk#<commit-sha>`. Git installs build the package during packing.
+With npm 12, use `--allow-git=root` if your policy blocks direct Git dependencies.
 
 ## Quick start
 
@@ -171,7 +166,16 @@ review the new contract, run `npm run generate`, update affected methods/tests, 
 production during builds. Do not edit `src/schema.ts` by hand.
 
 Changes to the client, its contract, and examples belong in a reviewed pull request.
-Publishing an npm release is a separate maintainer action; CI does not publish packages.
+
+## Releases
+
+Update `version` in `package.json` and `package-lock.json`, merge the change to `main`, and
+wait for SDK CI to pass. In GitHub Actions, run **Publish SDK** on `main` with that exact
+version. Leave **dry_run** enabled first to verify the package; run again with it disabled
+to publish. Existing npm versions cannot be overwritten.
+
+The release workflow reruns verification and uses npm trusted publishing with GitHub OIDC
+and provenance. It needs no stored npm token. Ordinary pushes and pull requests do not publish.
 
 ## License
 

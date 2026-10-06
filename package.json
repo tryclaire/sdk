@@ -4,6 +4,7 @@
   "description": "Typed, server-side client for the read-only Claire Developer API",
   "license": "MIT",
   "type": "module",
+  "publishConfig": { "access": "public", "registry": "https://registry.npmjs.org/" },
   "engines": { "node": ">=22" },
   "exports": {
     ".": { "types": "./dist/index.d.ts", "import": "./dist/index.js" }
