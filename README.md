@@ -71,6 +71,28 @@ not Telegram's numeric chat ID. Knowledge IDs include their prefix, such as `doc
 pass them unchanged. Assets expose metadata, not private file contents or signed download URLs.
 There are no send, publish, or other write methods.
 
+### Token identity
+
+The fields below are prepared for the next SDK release; npm `0.1.0` does not yet expose
+them in its TypeScript types. Network availability also depends on the API deployment.
+
+```js
+const result = await claire.token.get();
+if (result.data.token) {
+  const { chainId, address, protocol, pool, poolId, pairedToken } = result.data.token;
+  console.log(chainId, address, protocol, pool, poolId, pairedToken);
+}
+console.log(result.meta.freshness);
+```
+
+Identify a token by **chainId and address together**, not address alone. Ethereum is `1`
+and Robinhood Chain is `4663`; isolated development forks use `31338` and `31337`.
+`protocol` is `"pons"` or `"stockereum"`. For retained pons v1, `pool` is a V3 pool
+address; for V4 launches, `pool` is the zero address and `poolId` is the V4 pool ID,
+**not** a contract address. `poolId` and `pairedToken` can be `null` when unavailable;
+`data.token` itself is `null` when no token is linked. These are persisted observations,
+not live quotes; inspect freshness before using them.
+
 ### Responses and pagination
 
 Methods return the API's `data`, `meta`, and endpoint-specific `pagination`, plus `http` with
@@ -174,6 +196,26 @@ database/provider access are needed.
 review the new contract, run `npm run generate`, update affected methods/tests, and run
 `npm run check`. CI fails if generated types no longer match the snapshot; it does not fetch
 production during builds. Do not edit `src/schema.ts` by hand.
+
+Before a release, compare the parsed snapshot with the schema served by the **verified
+target deployment**. Use a running current-main local API while preparing locally, then
+repeat against the hosted API after rollout:
+
+```sh
+API_SCHEMA_URL="https://app.tryclaire.net/api/v1/openapi.json" node --input-type=module <<'JS'
+import assert from "node:assert/strict";
+import { readFile } from "node:fs/promises";
+const response = await fetch(process.env.API_SCHEMA_URL);
+assert.ok(response.ok, `Schema request failed: ${response.status}`);
+assert.deepStrictEqual(JSON.parse(await readFile("openapi.json", "utf8")), await response.json());
+console.log("SDK snapshot matches the selected API deployment.");
+JS
+```
+
+The prepared snapshot can precede the hosted rollout. A mismatch must be reviewed before
+publishing, not bypassed by changing the URL to an older deployment. This is a release
+handoff check; ordinary CI remains independent of production. Update the unreleased Token
+identity note when publishing the new version.
 
 Changes to the client, its contract, and examples belong in a reviewed pull request.
 

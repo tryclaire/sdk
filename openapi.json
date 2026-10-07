@@ -2553,15 +2553,30 @@
                 "additionalProperties": false,
                 "required": [
                   "address",
+                  "chainId",
+                  "protocol",
                   "name",
                   "symbol",
                   "pool",
+                  "poolId",
+                  "pairedToken",
                   "deployer",
                   "logoUrl"
                 ],
                 "properties": {
                   "address": {
                     "type": "string"
+                  },
+                  "chainId": {
+                    "type": "integer",
+                    "description": "4663 Robinhood, 1 Ethereum; isolated development forks use 31337 and 31338."
+                  },
+                  "protocol": {
+                    "type": "string",
+                    "enum": [
+                      "pons",
+                      "stockereum"
+                    ]
                   },
                   "name": {
                     "type": "string"
@@ -2570,7 +2585,21 @@
                     "type": "string"
                   },
                   "pool": {
-                    "type": "string"
+                    "type": "string",
+                    "description": "V3 pool address for retained pons v1; zero address for V4 launches."
+                  },
+                  "poolId": {
+                    "type": [
+                      "string",
+                      "null"
+                    ],
+                    "description": "Uniswap V4 pool ID, not a contract address."
+                  },
+                  "pairedToken": {
+                    "type": [
+                      "string",
+                      "null"
+                    ]
                   },
                   "deployer": {
                     "type": "string"

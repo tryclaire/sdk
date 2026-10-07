@@ -405,9 +405,17 @@ export interface components {
             connected: boolean;
             token: null | {
                 address: string;
+                /** @description 4663 Robinhood, 1 Ethereum; isolated development forks use 31337 and 31338. */
+                chainId: number;
+                /** @enum {string} */
+                protocol: "pons" | "stockereum";
                 name: string;
                 symbol: string;
+                /** @description V3 pool address for retained pons v1; zero address for V4 launches. */
                 pool: string;
+                /** @description Uniswap V4 pool ID, not a contract address. */
+                poolId: string | null;
+                pairedToken: string | null;
                 deployer: string;
                 logoUrl: string | null;
             };

@@ -30,6 +30,13 @@ async function consume() {
   const token = await sdk.token.get();
   const raw: string | undefined = token.data.holders?.trackedBalanceRaw;
   const tokenAddress: string | undefined = token.data.token?.address;
+  if (token.data.token) {
+    const chainId: number = token.data.token.chainId;
+    const protocol: 'pons' | 'stockereum' = token.data.token.protocol;
+    const poolId: string | null = token.data.token.poolId;
+    const pairedToken: string | null = token.data.token.pairedToken;
+    void [chainId, protocol, poolId, pairedToken];
+  }
   const latestTrade: string | null = token.data.latestTradeAt;
   const error = null as unknown as ClaireAPIError;
   const retry: number | null = error.retryAfterSeconds;
