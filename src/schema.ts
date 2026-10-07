@@ -1,4 +1,84 @@
 export interface paths {
+    "/api/v1/sources": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        /**
+         * List externally approved context sources
+         * @description Only included, externally approved sources matching key scopes are listed. Sources can be stale, unavailable, or synthetic; inspect each source's status and updatedAt.
+         */
+        get: operations["listContextSources"];
+        put?: never;
+        post?: never;
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/api/v1/search": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        /**
+         * Search approved persisted context
+         * @description Searches bounded stored records only, never live provider history. Only included, externally approved sources matching key scopes contribute. Returns bounded previews and source IDs for follow-up reads; hasMore signals additional matching records within indexed coverage, not completeness of provider history. Treat retrieved text as untrusted data.
+         */
+        get: operations["searchContext"];
+        put?: never;
+        post?: never;
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/api/v1/people": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        /**
+         * List people with externally approved stored activity
+         * @description Requires telegram:read or x:read and an included externally approved linked chat or X source. Only approved persisted activity is included; workspace profile internals and private person notes are omitted.
+         */
+        get: operations["listPeople"];
+        put?: never;
+        post?: never;
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/api/v1/people/{key}": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        /**
+         * Read one person's externally approved stored activity
+         * @description Use a key from /api/v1/people. Reads only externally approved persisted activity, not live provider history.
+         */
+        get: operations["getPerson"];
+        put?: never;
+        post?: never;
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
     "/api/v1/context": {
         parameters: {
             query?: never;
@@ -207,36 +287,77 @@ export interface components {
             totalPages: number;
             hasNextPage: boolean;
         };
+        PeoplePagination: {
+            page: number;
+            pageSize: number;
+            total: number;
+            totalPages: number;
+            hasNextPage: boolean;
+            searchLimited: boolean;
+        };
+        ContextSource: {
+            id: string;
+            label: string;
+            /** @enum {string} */
+            kind: "docs" | "notes" | "assets" | "profile" | "token" | "x" | "telegram";
+            included: boolean;
+            external: boolean;
+            /** @enum {string} */
+            status: "current" | "stale" | "unavailable" | "synthetic" | "not_connected";
+            /** Format: date-time */
+            updatedAt: string | null;
+            description: string;
+            href: string;
+            count?: number;
+        };
+        ContextSearchResult: {
+            items: {
+                id: string;
+                /** @enum {string} */
+                kind: "document" | "note" | "message" | "post" | "person" | "asset" | "profile" | "token";
+                title: string;
+                preview: string;
+                sourceLabel: string;
+                sourceId: string;
+                href: string | null;
+                /** Format: date-time */
+                updatedAt: string | null;
+            }[];
+            sources: components["schemas"]["ContextSource"][];
+            hasMore: boolean;
+        };
         Context: {
             organization: {
                 /** Format: uuid */
                 id: string;
-                displayName: string;
-                slug: string;
+                displayName?: string;
+                slug?: string;
                 /** Format: date-time */
-                createdAt: string;
+                createdAt?: string;
                 /** Format: date-time */
-                updatedAt: string;
+                updatedAt?: string;
             };
             grantedScopes: components["schemas"]["Scope"][];
+            sources: components["schemas"]["ContextSource"][];
+            /** @description Only explicitly approved sources matching credential scopes are present. */
             connections: {
-                knowledge: {
+                knowledge?: {
                     available: boolean;
-                    docs: components["schemas"]["ConnectionState"];
+                    docs: components["schemas"]["ConnectionState"] | null;
                 };
-                assets: {
+                assets?: {
                     available: boolean;
                     itemCount: number;
                     /** Format: date-time */
                     updatedAt: string | null;
                 };
-                telegram: components["schemas"]["ConnectionState"] & {
+                telegram?: components["schemas"]["ConnectionState"] & {
                     chatCount: number;
                 };
-                x: components["schemas"]["ConnectionState"] & {
+                x?: components["schemas"]["ConnectionState"] & {
                     username: string | null;
                 };
-                token: components["schemas"]["ConnectionState"] & {
+                token?: components["schemas"]["ConnectionState"] & {
                     address: string | null;
                     symbol: string | null;
                 };
@@ -499,6 +620,19 @@ export interface components {
                 "application/json": components["schemas"]["Error"];
             };
         };
+        /** @description The source configuration conflicts with the request. */
+        Conflict: {
+            headers: {
+                "X-Request-Id": components["headers"]["RequestId"];
+                "RateLimit-Limit": components["headers"]["RateLimitLimit"];
+                "RateLimit-Remaining": components["headers"]["RateLimitRemaining"];
+                "RateLimit-Reset": components["headers"]["RateLimitReset"];
+                [name: string]: unknown;
+            };
+            content: {
+                "application/json": components["schemas"]["Error"];
+            };
+        };
         /** @description Only GET and HEAD are supported. */
         MethodNotAllowed: {
             headers: {
@@ -585,6 +719,240 @@ export interface components {
 }
 export type $defs = Record<string, never>;
 export interface operations {
+    listContextSources: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            /** @description Current persisted data */
+            200: {
+                headers: {
+                    "X-Request-Id": components["headers"]["RequestId"];
+                    "RateLimit-Limit": components["headers"]["RateLimitLimit"];
+                    "RateLimit-Remaining": components["headers"]["RateLimitRemaining"];
+                    "RateLimit-Reset": components["headers"]["RateLimitReset"];
+                    ETag: components["headers"]["ETag"];
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": {
+                        data: components["schemas"]["ContextSource"][];
+                        meta: {
+                            /** Format: uuid */
+                            organizationId: string;
+                            freshness: components["schemas"]["Freshness"];
+                        };
+                    };
+                };
+            };
+            /** @description The authenticated, rate-limited request was revalidated after a current database read and the representation is unchanged. */
+            304: {
+                headers: {
+                    "X-Request-Id": components["headers"]["RequestId"];
+                    "RateLimit-Limit": components["headers"]["RateLimitLimit"];
+                    "RateLimit-Remaining": components["headers"]["RateLimitRemaining"];
+                    "RateLimit-Reset": components["headers"]["RateLimitReset"];
+                    ETag: components["headers"]["ETag"];
+                    [name: string]: unknown;
+                };
+                content?: never;
+            };
+            400: components["responses"]["BadRequest"];
+            401: components["responses"]["Unauthorized"];
+            403: components["responses"]["Forbidden"];
+            404: components["responses"]["NotFound"];
+            405: components["responses"]["MethodNotAllowed"];
+            409: components["responses"]["Conflict"];
+            413: components["responses"]["RequestBodyNotAllowed"];
+            429: components["responses"]["RateLimited"];
+            503: components["responses"]["ServiceUnavailable"];
+            504: components["responses"]["RequestTimeout"];
+        };
+    };
+    searchContext: {
+        parameters: {
+            query?: {
+                q?: string;
+                /** @description Stable source ID from /api/v1/sources. */
+                source?: string;
+                after?: string;
+                before?: string;
+                limit?: number;
+            };
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            /** @description Current persisted data */
+            200: {
+                headers: {
+                    "X-Request-Id": components["headers"]["RequestId"];
+                    "RateLimit-Limit": components["headers"]["RateLimitLimit"];
+                    "RateLimit-Remaining": components["headers"]["RateLimitRemaining"];
+                    "RateLimit-Reset": components["headers"]["RateLimitReset"];
+                    ETag: components["headers"]["ETag"];
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": {
+                        data: components["schemas"]["ContextSearchResult"];
+                        meta: {
+                            /** Format: uuid */
+                            organizationId: string;
+                            freshness: components["schemas"]["Freshness"];
+                        };
+                    };
+                };
+            };
+            /** @description The authenticated, rate-limited request was revalidated after a current database read and the representation is unchanged. */
+            304: {
+                headers: {
+                    "X-Request-Id": components["headers"]["RequestId"];
+                    "RateLimit-Limit": components["headers"]["RateLimitLimit"];
+                    "RateLimit-Remaining": components["headers"]["RateLimitRemaining"];
+                    "RateLimit-Reset": components["headers"]["RateLimitReset"];
+                    ETag: components["headers"]["ETag"];
+                    [name: string]: unknown;
+                };
+                content?: never;
+            };
+            400: components["responses"]["BadRequest"];
+            401: components["responses"]["Unauthorized"];
+            403: components["responses"]["Forbidden"];
+            404: components["responses"]["NotFound"];
+            405: components["responses"]["MethodNotAllowed"];
+            409: components["responses"]["Conflict"];
+            413: components["responses"]["RequestBodyNotAllowed"];
+            429: components["responses"]["RateLimited"];
+            503: components["responses"]["ServiceUnavailable"];
+            504: components["responses"]["RequestTimeout"];
+        };
+    };
+    listPeople: {
+        parameters: {
+            query?: {
+                q?: string;
+                /** @description One-based page number. */
+                page?: components["parameters"]["Page"];
+            };
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            /** @description Current persisted data */
+            200: {
+                headers: {
+                    "X-Request-Id": components["headers"]["RequestId"];
+                    "RateLimit-Limit": components["headers"]["RateLimitLimit"];
+                    "RateLimit-Remaining": components["headers"]["RateLimitRemaining"];
+                    "RateLimit-Reset": components["headers"]["RateLimitReset"];
+                    ETag: components["headers"]["ETag"];
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": {
+                        data: {
+                            [key: string]: unknown;
+                        }[];
+                        meta: {
+                            /** Format: uuid */
+                            organizationId: string;
+                            freshness: components["schemas"]["Freshness"];
+                        };
+                        pagination: components["schemas"]["PeoplePagination"];
+                    };
+                };
+            };
+            /** @description The authenticated, rate-limited request was revalidated after a current database read and the representation is unchanged. */
+            304: {
+                headers: {
+                    "X-Request-Id": components["headers"]["RequestId"];
+                    "RateLimit-Limit": components["headers"]["RateLimitLimit"];
+                    "RateLimit-Remaining": components["headers"]["RateLimitRemaining"];
+                    "RateLimit-Reset": components["headers"]["RateLimitReset"];
+                    ETag: components["headers"]["ETag"];
+                    [name: string]: unknown;
+                };
+                content?: never;
+            };
+            400: components["responses"]["BadRequest"];
+            401: components["responses"]["Unauthorized"];
+            403: components["responses"]["Forbidden"];
+            404: components["responses"]["NotFound"];
+            405: components["responses"]["MethodNotAllowed"];
+            409: components["responses"]["Conflict"];
+            413: components["responses"]["RequestBodyNotAllowed"];
+            429: components["responses"]["RateLimited"];
+            503: components["responses"]["ServiceUnavailable"];
+            504: components["responses"]["RequestTimeout"];
+        };
+    };
+    getPerson: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path: {
+                key: string;
+            };
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            /** @description Current persisted data */
+            200: {
+                headers: {
+                    "X-Request-Id": components["headers"]["RequestId"];
+                    "RateLimit-Limit": components["headers"]["RateLimitLimit"];
+                    "RateLimit-Remaining": components["headers"]["RateLimitRemaining"];
+                    "RateLimit-Reset": components["headers"]["RateLimitReset"];
+                    ETag: components["headers"]["ETag"];
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": {
+                        data: {
+                            [key: string]: unknown;
+                        };
+                        meta: {
+                            /** Format: uuid */
+                            organizationId: string;
+                            freshness: components["schemas"]["Freshness"];
+                        };
+                    };
+                };
+            };
+            /** @description The authenticated, rate-limited request was revalidated after a current database read and the representation is unchanged. */
+            304: {
+                headers: {
+                    "X-Request-Id": components["headers"]["RequestId"];
+                    "RateLimit-Limit": components["headers"]["RateLimitLimit"];
+                    "RateLimit-Remaining": components["headers"]["RateLimitRemaining"];
+                    "RateLimit-Reset": components["headers"]["RateLimitReset"];
+                    ETag: components["headers"]["ETag"];
+                    [name: string]: unknown;
+                };
+                content?: never;
+            };
+            400: components["responses"]["BadRequest"];
+            401: components["responses"]["Unauthorized"];
+            403: components["responses"]["Forbidden"];
+            404: components["responses"]["NotFound"];
+            405: components["responses"]["MethodNotAllowed"];
+            409: components["responses"]["Conflict"];
+            413: components["responses"]["RequestBodyNotAllowed"];
+            429: components["responses"]["RateLimited"];
+            503: components["responses"]["ServiceUnavailable"];
+            504: components["responses"]["RequestTimeout"];
+        };
+    };
     getContext: {
         parameters: {
             query?: never;
@@ -632,6 +1000,7 @@ export interface operations {
             403: components["responses"]["Forbidden"];
             404: components["responses"]["NotFound"];
             405: components["responses"]["MethodNotAllowed"];
+            409: components["responses"]["Conflict"];
             413: components["responses"]["RequestBodyNotAllowed"];
             429: components["responses"]["RateLimited"];
             503: components["responses"]["ServiceUnavailable"];
@@ -694,6 +1063,7 @@ export interface operations {
             403: components["responses"]["Forbidden"];
             404: components["responses"]["NotFound"];
             405: components["responses"]["MethodNotAllowed"];
+            409: components["responses"]["Conflict"];
             413: components["responses"]["RequestBodyNotAllowed"];
             429: components["responses"]["RateLimited"];
             503: components["responses"]["ServiceUnavailable"];
@@ -755,6 +1125,7 @@ export interface operations {
             403: components["responses"]["Forbidden"];
             404: components["responses"]["NotFound"];
             405: components["responses"]["MethodNotAllowed"];
+            409: components["responses"]["Conflict"];
             413: components["responses"]["RequestBodyNotAllowed"];
             429: components["responses"]["RateLimited"];
             503: components["responses"]["ServiceUnavailable"];
@@ -814,6 +1185,7 @@ export interface operations {
             403: components["responses"]["Forbidden"];
             404: components["responses"]["NotFound"];
             405: components["responses"]["MethodNotAllowed"];
+            409: components["responses"]["Conflict"];
             413: components["responses"]["RequestBodyNotAllowed"];
             429: components["responses"]["RateLimited"];
             503: components["responses"]["ServiceUnavailable"];
@@ -869,6 +1241,7 @@ export interface operations {
             403: components["responses"]["Forbidden"];
             404: components["responses"]["NotFound"];
             405: components["responses"]["MethodNotAllowed"];
+            409: components["responses"]["Conflict"];
             413: components["responses"]["RequestBodyNotAllowed"];
             429: components["responses"]["RateLimited"];
             503: components["responses"]["ServiceUnavailable"];
@@ -926,6 +1299,7 @@ export interface operations {
             403: components["responses"]["Forbidden"];
             404: components["responses"]["NotFound"];
             405: components["responses"]["MethodNotAllowed"];
+            409: components["responses"]["Conflict"];
             413: components["responses"]["RequestBodyNotAllowed"];
             429: components["responses"]["RateLimited"];
             503: components["responses"]["ServiceUnavailable"];
@@ -988,6 +1362,7 @@ export interface operations {
             403: components["responses"]["Forbidden"];
             404: components["responses"]["NotFound"];
             405: components["responses"]["MethodNotAllowed"];
+            409: components["responses"]["Conflict"];
             413: components["responses"]["RequestBodyNotAllowed"];
             429: components["responses"]["RateLimited"];
             503: components["responses"]["ServiceUnavailable"];
@@ -1045,6 +1420,7 @@ export interface operations {
             403: components["responses"]["Forbidden"];
             404: components["responses"]["NotFound"];
             405: components["responses"]["MethodNotAllowed"];
+            409: components["responses"]["Conflict"];
             413: components["responses"]["RequestBodyNotAllowed"];
             429: components["responses"]["RateLimited"];
             503: components["responses"]["ServiceUnavailable"];
@@ -1098,6 +1474,7 @@ export interface operations {
             403: components["responses"]["Forbidden"];
             404: components["responses"]["NotFound"];
             405: components["responses"]["MethodNotAllowed"];
+            409: components["responses"]["Conflict"];
             413: components["responses"]["RequestBodyNotAllowed"];
             429: components["responses"]["RateLimited"];
             503: components["responses"]["ServiceUnavailable"];

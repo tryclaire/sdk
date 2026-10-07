@@ -1,6 +1,7 @@
 import { ClaireAPIError, ClaireResponseError } from "./errors.js";
 import type {
-  ContextResponse, KnowledgeListResponse, KnowledgeItemResponse,
+  ContextResponse, SourcesResponse, SearchResponse, PeopleResponse, PersonResponse,
+  SearchParams, ListPeopleParams, KnowledgeListResponse, KnowledgeItemResponse,
   AssetsResponse, AssetResponse, TelegramChatsResponse, TelegramMessagesResponse,
   XMentionsResponse, TokenResponse, ListKnowledgeParams, GetKnowledgeItemParams,
   ListAssetsParams, ListTelegramChatsParams, ListTelegramMessagesParams,
@@ -73,6 +74,20 @@ export class Claire {
 
   readonly context = {
     get: (options?: RequestOptions) => this.#get<ContextResponse>("context", {}, options),
+  };
+
+  readonly sources = {
+    list: (options?: RequestOptions) => this.#get<SourcesResponse>("sources", {}, options),
+  };
+
+  readonly search = (query: SearchParams = {}, options?: RequestOptions) =>
+    this.#get<SearchResponse>("search", query, options);
+
+  readonly people = {
+    list: (query: ListPeopleParams = {}, options?: RequestOptions) =>
+      this.#get<PeopleResponse>("people", query, options),
+    get: async (key: string, options?: RequestOptions) =>
+      this.#get<PersonResponse>(`people/${resourceId(key)}`, {}, options),
   };
 
   readonly knowledge = {
