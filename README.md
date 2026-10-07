@@ -73,8 +73,8 @@ There are no send, publish, or other write methods.
 
 ### Token identity
 
-The fields below are prepared for the next SDK release; npm `0.1.0` does not yet expose
-them in its TypeScript types. Network availability also depends on the API deployment.
+SDK `0.2.0` adds typed chain and protocol identity to token responses.
+Network availability also depends on the API deployment.
 
 ```js
 const result = await claire.token.get();
@@ -214,8 +214,7 @@ JS
 
 The prepared snapshot can precede the hosted rollout. A mismatch must be reviewed before
 publishing, not bypassed by changing the URL to an older deployment. This is a release
-handoff check; ordinary CI remains independent of production. Update the unreleased Token
-identity note when publishing the new version.
+handoff check; ordinary CI remains independent of production.
 
 Changes to the client, its contract, and examples belong in a reviewed pull request.
 

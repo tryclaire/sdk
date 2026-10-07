@@ -1,6 +1,6 @@
 {
   "name": "@tryclaire/sdk",
-  "version": "0.1.0",
+  "version": "0.2.0",
   "description": "Typed, server-side client for the read-only Claire Developer API",
   "license": "MIT",
   "type": "module",
