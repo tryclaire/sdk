@@ -37,7 +37,7 @@ test('routes all read resources, preserves exact query values and the server env
     } else if (path === '/api/v1/assets') {
       json(res, envelope([], { ...page, folderId: 'folder-1', folderName: 'Design' }));
     } else if (path === '/api/v1/context') {
-      json(res, envelope({ organization: { displayName: 'Claire' }, grantedScopes: ['context:read'], connections: { telegram: { connected: false } } }));
+      json(res, envelope({ organization: { id: meta.organizationId }, grantedScopes: ['context:read'], connections: {}, sources: [] }));
     } else if (path.startsWith('/api/v1/knowledge/')) {
       json(res, envelope({ id: 'docs:alpha/beta', content: 'part', contentRange: { offset: 0, length: 4, total: 9, nextOffset: 4 } }));
     } else if (path === '/api/v1/knowledge' || path === '/api/v1/telegram/chats' || path === '/api/v1/x/mentions') {
@@ -78,7 +78,7 @@ test('routes all read resources, preserves exact query values and the server env
     assert.equal(req.headers.authorization, 'Bearer test-secret');
     assert.equal(req.headers.accept, 'application/json');
   }
-  assert.equal(context.data.organization.displayName, 'Claire');
+  assert.equal(context.data.organization.id, meta.organizationId);
   assert.deepEqual(knowledge.pagination, page);
   assert.equal(item.data.contentRange.nextOffset, 4);
   assert.equal(assets.pagination.folderName, 'Design');
@@ -203,6 +203,7 @@ test('invalid credentials, origins, timeouts, IDs and query primitives fail befo
   assert.doesNotMatch(JSON.stringify(sdk), /test-secret/);
   for (const id of ['', '.', '..']) {
     await assert.rejects(sdk.knowledge.get(id), TypeError);
+    await assert.rejects(sdk.people.get(id), TypeError);
     await assert.rejects(sdk.assets.get(id), TypeError);
     await assert.rejects(sdk.telegram.messages.list(id), TypeError);
   }

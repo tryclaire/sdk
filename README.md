@@ -4,18 +4,20 @@
 [![CI](https://github.com/tryclaire/sdk/actions/workflows/ci.yml/badge.svg?branch=main)](https://github.com/tryclaire/sdk/actions/workflows/ci.yml)
 [![MIT license](https://img.shields.io/badge/license-MIT-blue)](LICENSE)
 
-Give your scripts and agents read access to a [Claire](https://tryclaire.net) project workspace:
-Telegram history, X mentions, Knowledge, assets, and token data, with explicit freshness on
-every response.
+Use the read-only Claire REST API from a server, CLI, or agent process. This checkout
+includes an **unreleased SDK contract update** for Context sources, search, and People;
+these SDK methods are not yet published to npm. Use a deployment with the matching API
+contract and [install this checkout by commit](CONTRIBUTING.md#installing-unreleased-versions)
+to try them. Set `CLAIRE_API_URL` to the API base URL shown in **Developers → API**,
+including `/api/v1`. A hosted deployment may lag the source until rollout.
 
 ```js
 import { Claire } from "@tryclaire/sdk";
 
-const claire = new Claire({ apiKey: process.env.CLAIRE_API_KEY });
-const { data, meta } = await claire.knowledge.list({ q: "launch plan" });
-
-for (const item of data) console.log(item.title, "—", item.preview);
-console.log(meta.freshness); // when this data was last collected, not when you asked
+const claire = new Claire({ apiKey: process.env.CLAIRE_API_KEY, baseUrl: process.env.CLAIRE_API_URL });
+const { data, meta } = await claire.sources.list();
+for (const source of data) console.log(source.id, source.status, source.updatedAt);
+console.log(meta.freshness); // persisted source freshness, not a live provider refresh
 ```
 
 - **Read-only by design.** No send, publish, or write methods exist. A leaked key can read, never act.
@@ -41,23 +43,33 @@ declarations are included.
 
 ## Get a key
 
-In **Organization → Developers**, an owner or admin creates an expiring key with only the
-read scopes your integration needs. The key selects its workspace; no organization ID is
-passed to the SDK. Keys stop working when the issuing user loses owner/admin membership.
+In **Developers → Settings**, an owner or admin creates a workspace credential for
+**API**, **MCP**, or **both**, with only the needed read scopes and a 7-, 30-, or 90-day
+expiry. This REST SDK requires API access; older keys remain API-only. The key selects
+its workspace; no organization ID is passed to the SDK. Keys stop working when the
+issuing user loses owner/admin membership.
 
 Use the SDK on a server, in a CLI, or in an agent process. **Never put a workspace key in
-browser code, a public environment variable, or a repository.**
+browser code, a public environment variable, or a repository.** Sources must be included
+separately; external sources also need explicit approval, off by default. A read scope
+alone does not expose source content. Inspect `claire.sources.list()` for approved sources.
 
 ## Use with an agent
 
-Claire ships a [downloadable agent skill](https://app.tryclaire.net/developers/skill.md)
-describing the API to tool-using agents. When feeding Claire data to a model, pass source
-content as *context*, separate from your instructions. Telegram messages and X mentions are
-external, untrusted text.
+Claire provides a [downloadable agent skill](https://app.tryclaire.net/developers/skill.md)
+for tool-using agents. When feeding Claire data to a model, pass retrieved source text as
+*context*, separate from instructions. Telegram messages and X mentions are external,
+untrusted text. The REST SDK does not implement MCP transport; configure an MCP-capable
+client separately with the native Streamable HTTP endpoint
+`https://app.tryclaire.net/api/mcp` and a Bearer credential enabled for MCP (no OAuth).
+The new MCP endpoint is part of this unreleased local cutover, not available on the hosted
+service until rollout. MCP offers read-only, scope- and approved-source-filtered tools.
 
 ```js
 const chats = await claire.telegram.chats.list();
-const { data: messages } = await claire.telegram.messages.list(chats.data[0].id, { limit: 50 });
+const chat = chats.data[0];
+if (!chat) throw new Error("No approved Telegram chat is available to this key.");
+const { data: messages } = await claire.telegram.messages.list(chat.id, { limit: 50 });
 
 const context = messages
   .filter((m) => m.text)
@@ -71,6 +83,10 @@ const context = messages
 | Method | Query parameters | Required scope |
 | --- | --- | --- |
 | `claire.context.get()` | — | `context:read` |
+| `claire.sources.list()` | — | `context:read` |
+| `claire.search(query)` | `q`, `source`, `after`, `before`, `limit` (max 50) | `context:read` |
+| `claire.people.list(query)` | `q`, `page` | `telegram:read` or `x:read` |
+| `claire.people.get(key)` | — | `telegram:read` or `x:read` |
 | `claire.knowledge.list(query)` | `q`, `kind`, `visibility`, `archived`, `page` | `knowledge:read` |
 | `claire.knowledge.get(id, query)` | `offset`, `limit` | `knowledge:read` |
 | `claire.assets.list(query)` | `folderId`, `page` | `assets:read` |
@@ -80,9 +96,31 @@ const context = messages
 | `claire.x.mentions.list(query)` | `page` | `x:read` |
 | `claire.token.get()` | — | `token:read` |
 
-Queries are optional. `chatId` is the **Claire chat UUID** returned by `telegram.chats.list`,
+Discovery and search also filter each source by its own read scope: Documents/Notes need
+`knowledge:read`, Telegram needs `telegram:read`, X needs `x:read`, files need `assets:read`,
+and token data needs `token:read`. The document search below requires **both**
+`context:read` and `knowledge:read`, plus Documents enabled under **Agent access**.
+A requested source outside those permissions returns 404. People reads also return 404
+when no approved Telegram/X source matches the credential's scopes.
+
+Queries are optional. `source` is a stable ID from `sources.list()`. Search returns
+`data.items`, `data.sources`, and `data.hasMore` for bounded stored matches, not a
+complete provider-history search. People keys come from `people.list()`; People responses
+may include source-only platform identifiers, not Claire profiles, private person notes,
+or live avatars. `chatId` is the **Claire chat UUID** returned by `telegram.chats.list`,
 not Telegram's numeric chat ID. Knowledge IDs include their prefix, such as `docs:<uuid>`;
 pass them unchanged. Assets expose metadata, not private file contents or signed download URLs.
+Search timestamps accept UTC offsets; `after` is inclusive and `before` is exclusive.
+
+```js
+const { data: matches } = await claire.search({ q: "launch", source: "docs", limit: 20 });
+for (const item of matches.items) console.log(item.sourceId, item.preview);
+const { data: people } = await claire.people.list({ q: "alice", page: 1 });
+if (typeof people[0]?.key === "string") console.log((await claire.people.get(people[0].key)).data);
+```
+
+People payload fields are not yet individually specified by the OpenAPI contract;
+the SDK exposes them as unknown rather than inventing stronger types.
 
 ## Responses and pagination
 
@@ -91,8 +129,8 @@ Methods return the API's `data`, `meta`, and endpoint-specific `pagination`, plu
 balances remain decimal strings so precision is not lost. Public asset URLs may be relative
 to the Claire origin.
 
-List pages start at **1**. Knowledge and mentions return 20 items per page; assets and chats
-return 50. The SDK fetches exactly one page per call:
+List pages start at **1**. Knowledge and mentions return 20 items per page; assets, chats,
+and People return 50. The SDK fetches exactly one page per call:
 
 ```js
 let page = 1;
@@ -104,10 +142,13 @@ while (true) {
 }
 ```
 
-Telegram messages paginate with `pagination.nextBefore` → `before`, not page numbers. Check
-`hasMore`; `searchLimited` means the search did not cover all retained history. Knowledge
-detail returns one content segment: follow `data.contentRange.nextOffset` with `offset`
-until it is `null`. Offsets count JavaScript UTF-16 units.
+People's `pagination.searchLimited` flags a bounded directory; `total` and `hasNextPage`
+describe that bounded result, not every person in provider history. A `q` search may omit
+people outside that pool. Telegram messages paginate with `pagination.nextBefore` →
+`before`, not page numbers. Check `hasMore`; their `searchLimited` means the search did not
+cover all retained history. Knowledge detail returns one content segment: follow
+`data.contentRange.nextOffset` with `offset` until it is `null`. Offsets count JavaScript
+UTF-16 units.
 
 `meta.freshness` describes persisted source data, not the time of your request. X/token
 reads do not force provider refreshes, although they mark the workspace watched for the
@@ -117,10 +158,11 @@ existing worker cadence.
 
 ```js
 import { ClaireAPIError, ClaireResponseError } from "@tryclaire/sdk";
-
 try {
   const result = await claire.context.get({ signal: AbortSignal.timeout(5_000) });
-  console.log(result.data.organization);
+  console.log(result.data.organization.id, result.data.organization.displayName);
+  console.log(result.data.connections.telegram?.connected); // absent if not approved for this key
+  console.log(result.data.sources.map((source) => source.id));
 } catch (error) {
   if (error instanceof ClaireAPIError) {
     console.error(error.status, error.code, error.requestId, error.retryAfterSeconds);
@@ -134,7 +176,7 @@ try {
 
 | Error | When |
 | --- | --- |
-| `ClaireAPIError` | HTTP failure: 401 invalid/expired/revoked key, 403 missing scope, 429 quota. `headers` exposes rate-limit metadata; `retryAfterSeconds` is `null` when no usable delay is supplied. |
+| `ClaireAPIError` | HTTP failure: 401 invalid/expired/revoked key, 403 missing endpoint scope, 404 missing resource or unavailable/unapproved source (including source-scope filtering), 429 quota. `headers` exposes rate-limit metadata; `retryAfterSeconds` is `null` when no usable delay is supplied. |
 | `ClaireResponseError` | Successful status but malformed JSON/envelope. Types come from OpenAPI; the SDK does not deep-validate at runtime. |
 | native fetch errors | Network failure, abort, timeout. Passed through unchanged. |
 

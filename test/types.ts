@@ -1,4 +1,4 @@
-import { Claire, type ClaireAPIError, type ClaireResponseError } from '../dist/index.js';
+import { Claire, type ClaireAPIError, type ClaireResponseError, type ContextSource, type ContextSearchResult, type SearchItem, type SearchParams, type ListPeopleParams, type Person, type SourcesResponse, type SearchResponse, type PeopleResponse, type PersonResponse } from '../dist/index.js';
 
 const sdk = new Claire({ apiKey: 'type-only', timeoutMs: 1000 });
 
@@ -7,6 +7,24 @@ async function consume() {
   const scope: 'context:read' | 'knowledge:read' | 'assets:read' | 'telegram:read' | 'x:read' | 'token:read' | undefined = context.data.grantedScopes[0];
   const requestId: string | null = context.http.requestId;
   const freshness: 'current' | 'stale' | 'unavailable' | 'synthetic' = context.meta.freshness.status;
+  const identity: string | undefined = context.data.organization.displayName;
+  const connection: boolean | undefined = context.data.connections.telegram?.connected;
+  const approved: ContextSource | undefined = context.data.sources[0];
+  const sources: SourcesResponse = await sdk.sources.list();
+  const sourceStatus: ContextSource['status'] | undefined = sources.data[0]?.status;
+  const query: SearchParams = { q: 'hello', ...(approved ? { source: approved.id } : {}), after: '2026-01-01T00:00:00Z', before: '2026-10-01T00:00:00Z', limit: 50 };
+  const search: SearchResponse = await sdk.search(query);
+  const result: ContextSearchResult = search.data;
+  const match: SearchItem | undefined = result.items[0];
+  const sourceId: string | undefined = match?.sourceId;
+  const peopleQuery: ListPeopleParams = { q: 'Alice', page: 1 };
+  const people: PeopleResponse = await sdk.people.list(peopleQuery);
+  const page: number = people.pagination.page;
+  const peopleLimited: boolean = people.pagination.searchLimited;
+  const person: PersonResponse = await sdk.people.get('tg:42');
+  const fields: Person = person.data;
+  const unknownField: unknown = fields.key;
+  void [identity, connection, sourceStatus, sourceId, page, peopleLimited, unknownField];
 
   const knowledge = await sdk.knowledge.list({ q: 'C++', archived: false, kind: 'note', visibility: 'team', page: 1 });
   const next: boolean = knowledge.pagination.hasNextPage;
@@ -51,6 +69,13 @@ async function consume() {
   await sdk.knowledge.list({ kind: 'article' });
   // @ts-expect-error page is numeric
   await sdk.x.mentions.list({ page: '2' });
+  // @ts-expect-error search limit is numeric
+  await sdk.search({ limit: '50' });
+  // @ts-expect-error people page is numeric
+  await sdk.people.list({ page: '2' });
+  // @ts-expect-error person fields remain unknown until specified by the API contract
+  const inferredName: string = person.data.displayName;
+  void inferredName;
   // @ts-expect-error message cursor is numeric
   await sdk.telegram.messages.list('chat', { before: '42' });
   // @ts-expect-error read-only API has no mutation method
