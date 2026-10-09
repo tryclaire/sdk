@@ -549,7 +549,7 @@ export interface components {
                 /** @enum {string} */
                 state: "ready" | "collecting" | "error";
             };
-            /** @description Positive tracked balances, excluding the pool, factory, zero and burn addresses. Raw balances use 18 decimal places. */
+            /** @description Positive tracked balances, excluding the pool, factory, launchpad custody, zero and burn addresses. Raw balances are in the token's smallest unit (its own decimals). */
             holders: null | {
                 count: number;
                 trackedBalanceRaw: string;

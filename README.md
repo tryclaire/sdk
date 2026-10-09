@@ -214,6 +214,11 @@ address; for V4 launches, `pool` is the zero address and `poolId` is the V4 pool
 `null` when no token is linked. These are persisted observations, not live quotes; inspect
 `meta.freshness` first.
 
+`holders.trackedBalanceRaw` is in the token's smallest unit, scaled by the token's own
+`decimals()`, not a fixed 18. Holder data follows the chain's **finalized** block, so
+`index.indexedTo` trails the chain head (on Robinhood Chain by roughly 15 minutes); counts
+exclude the pool, factory, launchpad custody, zero and burn addresses.
+
 ## Configuration
 
 ```js
