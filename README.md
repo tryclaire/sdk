@@ -4,12 +4,8 @@
 [![CI](https://github.com/tryclaire/sdk/actions/workflows/ci.yml/badge.svg?branch=main)](https://github.com/tryclaire/sdk/actions/workflows/ci.yml)
 [![MIT license](https://img.shields.io/badge/license-MIT-blue)](LICENSE)
 
-Use the read-only Claire REST API from a server, CLI, or agent process. This checkout
-includes an **unreleased SDK contract update** for Context sources, search, and People;
-these SDK methods are not yet published to npm. Use a deployment with the matching API
-contract and [install this checkout by commit](CONTRIBUTING.md#installing-unreleased-versions)
-to try them. Set `CLAIRE_API_URL` to the API base URL shown in **Developers → API**,
-including `/api/v1`. A hosted deployment may lag the source until rollout.
+Use the read-only Claire REST API from a server, CLI, or agent process. Set `CLAIRE_API_URL`
+to the API base URL shown in **Developers → API**, including `/api/v1`.
 
 ```js
 import { Claire } from "@tryclaire/sdk";
@@ -62,8 +58,7 @@ for tool-using agents. When feeding Claire data to a model, pass retrieved sourc
 untrusted text. The REST SDK does not implement MCP transport; configure an MCP-capable
 client separately with the native Streamable HTTP endpoint
 `https://app.tryclaire.net/api/mcp` and a Bearer credential enabled for MCP (no OAuth).
-The new MCP endpoint is part of this unreleased local cutover, not available on the hosted
-service until rollout. MCP offers read-only, scope- and approved-source-filtered tools.
+MCP offers read-only, scope- and approved-source-filtered tools.
 
 ```js
 const chats = await claire.telegram.chats.list();
