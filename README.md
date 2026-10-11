@@ -5,7 +5,7 @@
 [![MIT license](https://img.shields.io/badge/license-MIT-blue)](LICENSE)
 
 Use the read-only Claire REST API from a server, CLI, or agent process. Set `CLAIRE_API_URL`
-to the API base URL shown in **Developers → API**, including `/api/v1`.
+to the API base URL shown under **Developers → Connect** (API), including `/api/v1`.
 
 ```js
 import { Claire } from "@tryclaire/sdk";
@@ -39,7 +39,7 @@ declarations are included.
 
 ## Get a key
 
-In **Developers → Settings**, an owner or admin creates a workspace credential for
+On the **Developers** page, an owner or admin creates a workspace key for
 **API**, **MCP**, or **both**, with only the needed read scopes and a 7-, 30-, or 90-day
 expiry. This REST SDK requires API access; older keys remain API-only. The key selects
 its workspace; no organization ID is passed to the SDK. Keys stop working when the
