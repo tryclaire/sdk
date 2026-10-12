@@ -50,7 +50,7 @@ async function consume() {
   const tokenAddress: string | undefined = token.data.token?.address;
   if (token.data.token) {
     const chainId: number = token.data.token.chainId;
-    const protocol: 'pons' | 'stockereum' = token.data.token.protocol;
+    const protocol: 'pons' | 'stockereum' | 'programmable' = token.data.token.protocol;
     const poolId: string | null = token.data.token.poolId;
     const pairedToken: string | null = token.data.token.pairedToken;
     void [chainId, protocol, poolId, pairedToken];
