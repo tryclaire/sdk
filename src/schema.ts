@@ -529,7 +529,7 @@ export interface components {
                 /** @description 4663 Robinhood, 1 Ethereum; isolated development forks use 31337 and 31338. */
                 chainId: number;
                 /** @enum {string} */
-                protocol: "pons" | "stockereum";
+                protocol: "pons" | "stockereum" | "programmable";
                 name: string;
                 symbol: string;
                 /** @description V3 pool address for retained pons v1; zero address for V4 launches. */

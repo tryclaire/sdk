@@ -203,7 +203,7 @@ if (data.token) {
 
 Identify a token by **chainId and address together**, not address alone. Ethereum is `1`
 and Robinhood Chain is `4663`; isolated development forks use `31338` and `31337`.
-`protocol` is `"pons"` or `"stockereum"`. For retained pons v1, `pool` is a V3 pool
+`protocol` is `"pons"`, `"stockereum"` or `"programmable"`. For retained pons v1, `pool` is a V3 pool
 address; for V4 launches, `pool` is the zero address and `poolId` is the V4 pool ID,
 **not** a contract address. `poolId` and `pairedToken` can be `null`; `data.token` is
 `null` when no token is linked. These are persisted observations, not live quotes; inspect
