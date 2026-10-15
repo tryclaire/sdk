@@ -1,16 +1,17 @@
 {
   "name": "@tryclaire/sdk",
-  "version": "0.4.0",
-  "description": "Typed, server-side client for the read-only Claire Developer API",
+  "version": "0.5.0",
+  "description": "Typed, server-side client for the read-only Claire Developer API, plus on-chain verification of Claire launches, locks and rounds",
   "license": "MIT",
   "type": "module",
   "publishConfig": { "access": "public", "registry": "https://registry.npmjs.org/" },
   "engines": { "node": ">=22" },
   "exports": {
-    ".": { "types": "./dist/index.d.ts", "import": "./dist/index.js" }
+    ".": { "types": "./dist/index.d.ts", "import": "./dist/index.js" },
+    "./protocol": { "types": "./dist/protocol/index.d.ts", "import": "./dist/protocol/index.js" }
   },
   "types": "./dist/index.d.ts",
-  "files": ["dist", "LICENSE", "README.md"],
+  "files": ["dist", "LICENSE", "README.md", "CHANGELOG.md"],
   "sideEffects": false,
   "repository": { "type": "git", "url": "git+https://github.com/tryclaire/sdk.git" },
   "bugs": { "url": "https://github.com/tryclaire/sdk/issues" },
@@ -18,16 +19,26 @@
   "scripts": {
     "build": "tsc -p tsconfig.json",
     "generate": "node scripts/generate.mjs",
+    "sync-abis": "node scripts/sync-abis.mjs",
     "check:types": "node scripts/generate.mjs --check",
+    "check:abis": "node scripts/sync-abis.mjs --check",
     "test": "npm run build && node --test test/*.test.mjs",
+    "test:integration": "npm run build && node --test --test-timeout=600000 test/integration/*.test.mjs",
     "test:types": "tsc -p test/tsconfig.json",
     "test:package": "node scripts/smoke-package.mjs",
     "check": "npm run check:types && npm test && npm run test:types && npm run test:package",
     "prepare": "npm run build",
     "prepack": "npm run build"
   },
+  "peerDependencies": {
+    "viem": "^2.21.0"
+  },
+  "peerDependenciesMeta": {
+    "viem": { "optional": true }
+  },
   "devDependencies": {
     "openapi-typescript": "7.13.0",
-    "typescript": "5.9.3"
+    "typescript": "5.9.3",
+    "viem": "2.56.3"
   }
 }

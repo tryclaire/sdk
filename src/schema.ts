@@ -259,6 +259,66 @@ export interface paths {
         patch?: never;
         trace?: never;
     };
+    "/api/v1/token/locks": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        /**
+         * List Claire locks
+         * @description Lists the organization's locks from persisted, confirmed funding receipts, with public proof IDs. It makes no RPC request; claimed and remaining amounts are on each lock's public proof page.
+         */
+        get: operations["listTokenLocks"];
+        put?: never;
+        post?: never;
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/api/v1/token/fee-routers": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        /**
+         * List fee routers
+         * @description Lists the organization's confirmed Claire fee routers with their immutable configuration and the sums of confirmed harvests per asset. It makes no RPC request.
+         */
+        get: operations["listFeeRouters"];
+        put?: never;
+        post?: never;
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/api/v1/token/rounds": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        /**
+         * List distribution rounds
+         * @description Lists the organization's confirmed project-holder and airdrop rounds. Each manifestUrl serves the canonical manifest verbatim; its keccak-256 is the round's on-chain evidence.
+         */
+        get: operations["listTokenRounds"];
+        put?: never;
+        post?: never;
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
 }
 export type webhooks = Record<string, never>;
 export interface components {
@@ -568,6 +628,103 @@ export interface components {
                 transfers: components["schemas"]["TokenSourceFreshness"];
                 fees: components["schemas"]["TokenSourceFreshness"];
             };
+        };
+        TokenLock: {
+            /** @enum {string} */
+            kind: "time" | "revenue";
+            /** @description Public proof ID: /locks/{chainId}/{id}. */
+            id: string;
+            chainId: number;
+            contract: string;
+            lockId: string;
+            token: string;
+            funder: string;
+            beneficiary: string;
+            /** @description Raw token units funded. */
+            amount: string;
+            /**
+             * @description Time locks only.
+             * @enum {string|null}
+             */
+            schedule: "timelock" | "linear" | "catch-up-cliff" | null;
+            /** @description Unix seconds; time locks only. */
+            start: string | null;
+            /** @description Unix seconds; time locks only. */
+            cliff: string | null;
+            /** @description Unix seconds; time locks only. */
+            end: string | null;
+            /** @description Revenue locks only: tokens unlock as the token's fee router collects revenue. Milestones are cumulative router revenue in raw units of the quote asset, counted from baseline; at deadline everything unlocks. Revenue counts everything the router collects from the launchpad escrow, including third-party credits to it. */
+            revenue: null | {
+                router: string;
+                /** @description Quote asset; the zero address is native ETH. */
+                asset: string;
+                baseline: string;
+                /** @description Unix seconds. */
+                deadline: string;
+                tranches: {
+                    revenue: string;
+                    bps: number;
+                }[];
+            };
+            cancelable: boolean;
+            transferable: boolean;
+            fundingTransactionHash: string | null;
+            published: boolean;
+            /** @description Public proof page, present once the lock is published. */
+            proofUrl: string | null;
+            /** Format: date-time */
+            createdAt: string;
+        };
+        FeeRouter: {
+            router: string;
+            chainId: number;
+            factory: string;
+            /** @enum {string} */
+            launchpad: "pons" | "stockereum";
+            creator: string;
+            /** @description Project holders' share of trading revenue, in basis points. */
+            holderBps: number;
+            projectHolderDistributor: string;
+            claireHolderDistributor: string;
+            treasury: string;
+            /** @description The organization's linked token when this router launched it. */
+            launchedToken: string | null;
+            /** @description Sums of confirmed harvests per asset, in raw units of that asset. */
+            totals: {
+                /** @description Quote asset; the zero address is native ETH. */
+                asset: string;
+                harvests: number;
+                received: string;
+                revenue: string;
+                creator: string;
+                projectHolders: string;
+                claireHolders: string;
+                treasury: string;
+                /** Format: date-time */
+                lastHarvestAt: string | null;
+            }[];
+            /** Format: date-time */
+            deployedAt: string;
+        };
+        TokenRound: {
+            /** @description Chain of the distributor. */
+            chainId: number;
+            /** @enum {string} */
+            purpose: "project-holders" | "claire-holders" | "airdrop" | "referrals";
+            distributor: string;
+            roundId: string;
+            asset: string;
+            total: string;
+            recipients: number;
+            snapshotBlock: string;
+            root: string;
+            /** @description keccak-256 of the exact manifest string served at manifestUrl. */
+            evidence: string;
+            transactionHash: string | null;
+            /** @description Absent for rounds published before manifests existed. */
+            manifestUrl: string | null;
+            /** Format: date-time */
+            publishedAt: string;
         };
     };
     responses: {
@@ -1454,6 +1611,172 @@ export interface operations {
                             organizationId: string;
                             freshness: components["schemas"]["Freshness"];
                         };
+                    };
+                };
+            };
+            /** @description The authenticated, rate-limited request was revalidated after a current database read and the representation is unchanged. */
+            304: {
+                headers: {
+                    "X-Request-Id": components["headers"]["RequestId"];
+                    "RateLimit-Limit": components["headers"]["RateLimitLimit"];
+                    "RateLimit-Remaining": components["headers"]["RateLimitRemaining"];
+                    "RateLimit-Reset": components["headers"]["RateLimitReset"];
+                    ETag: components["headers"]["ETag"];
+                    [name: string]: unknown;
+                };
+                content?: never;
+            };
+            400: components["responses"]["BadRequest"];
+            401: components["responses"]["Unauthorized"];
+            403: components["responses"]["Forbidden"];
+            404: components["responses"]["NotFound"];
+            405: components["responses"]["MethodNotAllowed"];
+            409: components["responses"]["Conflict"];
+            413: components["responses"]["RequestBodyNotAllowed"];
+            429: components["responses"]["RateLimited"];
+            503: components["responses"]["ServiceUnavailable"];
+            504: components["responses"]["RequestTimeout"];
+        };
+    };
+    listTokenLocks: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            /** @description Current persisted data */
+            200: {
+                headers: {
+                    "X-Request-Id": components["headers"]["RequestId"];
+                    "RateLimit-Limit": components["headers"]["RateLimitLimit"];
+                    "RateLimit-Remaining": components["headers"]["RateLimitRemaining"];
+                    "RateLimit-Reset": components["headers"]["RateLimitReset"];
+                    ETag: components["headers"]["ETag"];
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": {
+                        data: components["schemas"]["TokenLock"][];
+                        meta: {
+                            /** Format: uuid */
+                            organizationId: string;
+                            freshness: components["schemas"]["Freshness"];
+                        };
+                    };
+                };
+            };
+            /** @description The authenticated, rate-limited request was revalidated after a current database read and the representation is unchanged. */
+            304: {
+                headers: {
+                    "X-Request-Id": components["headers"]["RequestId"];
+                    "RateLimit-Limit": components["headers"]["RateLimitLimit"];
+                    "RateLimit-Remaining": components["headers"]["RateLimitRemaining"];
+                    "RateLimit-Reset": components["headers"]["RateLimitReset"];
+                    ETag: components["headers"]["ETag"];
+                    [name: string]: unknown;
+                };
+                content?: never;
+            };
+            400: components["responses"]["BadRequest"];
+            401: components["responses"]["Unauthorized"];
+            403: components["responses"]["Forbidden"];
+            404: components["responses"]["NotFound"];
+            405: components["responses"]["MethodNotAllowed"];
+            409: components["responses"]["Conflict"];
+            413: components["responses"]["RequestBodyNotAllowed"];
+            429: components["responses"]["RateLimited"];
+            503: components["responses"]["ServiceUnavailable"];
+            504: components["responses"]["RequestTimeout"];
+        };
+    };
+    listFeeRouters: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            /** @description Current persisted data */
+            200: {
+                headers: {
+                    "X-Request-Id": components["headers"]["RequestId"];
+                    "RateLimit-Limit": components["headers"]["RateLimitLimit"];
+                    "RateLimit-Remaining": components["headers"]["RateLimitRemaining"];
+                    "RateLimit-Reset": components["headers"]["RateLimitReset"];
+                    ETag: components["headers"]["ETag"];
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": {
+                        data: components["schemas"]["FeeRouter"][];
+                        meta: {
+                            /** Format: uuid */
+                            organizationId: string;
+                            freshness: components["schemas"]["Freshness"];
+                        };
+                    };
+                };
+            };
+            /** @description The authenticated, rate-limited request was revalidated after a current database read and the representation is unchanged. */
+            304: {
+                headers: {
+                    "X-Request-Id": components["headers"]["RequestId"];
+                    "RateLimit-Limit": components["headers"]["RateLimitLimit"];
+                    "RateLimit-Remaining": components["headers"]["RateLimitRemaining"];
+                    "RateLimit-Reset": components["headers"]["RateLimitReset"];
+                    ETag: components["headers"]["ETag"];
+                    [name: string]: unknown;
+                };
+                content?: never;
+            };
+            400: components["responses"]["BadRequest"];
+            401: components["responses"]["Unauthorized"];
+            403: components["responses"]["Forbidden"];
+            404: components["responses"]["NotFound"];
+            405: components["responses"]["MethodNotAllowed"];
+            409: components["responses"]["Conflict"];
+            413: components["responses"]["RequestBodyNotAllowed"];
+            429: components["responses"]["RateLimited"];
+            503: components["responses"]["ServiceUnavailable"];
+            504: components["responses"]["RequestTimeout"];
+        };
+    };
+    listTokenRounds: {
+        parameters: {
+            query?: {
+                /** @description One-based page number. */
+                page?: components["parameters"]["Page"];
+            };
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            /** @description Current persisted data */
+            200: {
+                headers: {
+                    "X-Request-Id": components["headers"]["RequestId"];
+                    "RateLimit-Limit": components["headers"]["RateLimitLimit"];
+                    "RateLimit-Remaining": components["headers"]["RateLimitRemaining"];
+                    "RateLimit-Reset": components["headers"]["RateLimitReset"];
+                    ETag: components["headers"]["ETag"];
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": {
+                        data: components["schemas"]["TokenRound"][];
+                        meta: {
+                            /** Format: uuid */
+                            organizationId: string;
+                            freshness: components["schemas"]["Freshness"];
+                        };
+                        pagination: components["schemas"]["NumberedPagination"];
                     };
                 };
             };

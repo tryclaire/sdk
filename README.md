@@ -90,6 +90,9 @@ const context = messages
 | `claire.telegram.messages.list(chatId, query)` | `q`, `before`, `limit` | `telegram:read` |
 | `claire.x.mentions.list(query)` | `page` | `x:read` |
 | `claire.token.get()` | — | `token:read` |
+| `claire.token.locks.list()` | — | `token:read` |
+| `claire.token.feeRouters.list()` | — | `token:read` |
+| `claire.token.rounds.list(query)` | `page` | `token:read` |
 
 Discovery and search also filter each source by its own read scope: Documents/Notes need
 `knowledge:read`, Telegram needs `telegram:read`, X needs `x:read`, files need `assets:read`,
@@ -229,6 +232,67 @@ The base URL includes `/api/v1`. HTTPS is required except for loopback HTTP duri
 development. URL credentials, query strings, and fragments are rejected. Redirects are
 rejected rather than forwarding the key. Only configure an origin you trust with that key.
 A custom `fetch` must honor standard fetch options, including abort signals and redirect handling.
+
+## Verify on-chain
+
+`@tryclaire/sdk/protocol` reads and verifies Claire launches, locks, fee routing and distribution
+rounds directly from a chain, so nothing depends on trusting the Claire API. It needs
+[`viem`](https://viem.sh) (an optional peer dependency; the root client stays dependency-free)
+and a `PublicClient` for each chain involved. Every function takes explicit contract addresses.
+
+```js
+import { createPublicClient, http } from "viem";
+import { verifyLaunch, verifyLock, verifyRevenueLock, verifyRouterSplit, verifyRound } from "@tryclaire/sdk/protocol";
+
+const client = createPublicClient({ transport: http(process.env.RPC_URL) });
+const addresses = { routerFactory: "0x…", tokenLock: "0x…", revenueLock: "0x…" };
+
+const launch = await verifyLaunch(client, { token: "0x…", routerFactory: addresses.routerFactory, fromBlock: 1234n });
+const split = await verifyRouterSplit(client, { router: launch.facts.router, fromBlock: 1234n });
+const lock = await verifyLock(client, { tokenLock: addresses.tokenLock, lockId: 0n, routerFactory: addresses.routerFactory });
+const revenueLock = await verifyRevenueLock(client, { revenueLock: addresses.revenueLock, lockId: 0n });
+
+const round = await verifyRound(client, {
+  distributor: "0x…", roundId: 0n, level: "complete",
+  manifestBaseUrl: "https://app.tryclaire.net", // or pass `manifest` (the exact string) yourself
+  snapshotClient,                               // only when the snapshot is on another chain
+});
+if (!round.ok) console.log(round.checks.filter((check) => !check.ok));
+```
+
+Each verifier returns `{ ok, checks: [{ id, ok, detail }], facts }`. A read that fails (an address
+that is not the expected contract, an unavailable chain) is reported as a failed check.
+Event scans start at `fromBlock` (default `0n`; set it to the deployment block on public
+chains) and run in `chunk`-sized requests (default `10_000n`).
+
+| Function | Verifies |
+| --- | --- |
+| `verifyLaunch` | The factory registers the token to a router it created, and the router's immutables match the factory and its `Launched` event. |
+| `verifyRouterSplit` | Every `Distributed` event equals the router's `split()` of its revenue. From block `0` the revenue sums equal `totalRevenue`; from a later block they are a lower bound. |
+| `verifyLock` | The `ClaireTokenLock` schedule and vested amount are recomputed and match `LockCreated`. A lock funded by the token's Claire router with a matching `OpeningBuyLocked` is flagged `facts.openingBuy`. |
+| `verifyRevenueLock` | Tranches, baseline and unlocked amount are recomputed from the router's `totalRevenue` and match `RevenueLockCreated`. |
+| `verifyRound` | See below. |
+
+Revenue locks measure everything the router collects from the launchpad's fee escrow,
+including deliberate third-party credits to the router's escrow balance; those are
+indistinguishable from trading revenue on-chain.
+
+`verifyRound` levels build on each other:
+
+- `manifest` (default): the manifest's keccak256 equals the round's on-chain evidence, its leaves rebuild the on-chain Merkle root and total, and its chain, distributor and asset match.
+- `balances`: each leaf `balance` equals `balanceOf` at the snapshot block on the snapshot chain, and every amount is `floor(distributable * balance / eligibleBalance)` from the manifest rule.
+- `complete`: a chunked `Transfer` scan of the snapshot token up to the snapshot block, minus the manifest's `excluded` addresses and `minBalance`, must sum to `eligibleBalance` and yield exactly the leaves' holders (a holder whose share rounds to zero has no leaf).
+
+Pro-rata amounts are `floor(distributable * balance / eligibleBalance)`. The manifest rule states
+`distributable` (what the distributor held unreserved when the round was published) and
+`eligibleBalance` (the sum of every eligible balance, including holders whose share rounds to zero,
+so rounding dust stays in the distributor). Referral rounds carry their rewards in the manifest, and
+each leaf must equal that account's reward sum.
+
+The hashing helpers are exported too: `roundLeafHash`, `merkleRoot`, `merkleProof` (sorted-pair
+tree, as in `ClaireDistributor`) and `manifestEvidence`. Readers (`readLaunch`, `readRouter`,
+`readLock`, `readRevenueLock`, `readRound`) return the on-chain state at one pinned block, and the
+contract ABIs (`claireFeeRouterAbi`, `claireRevenueLockAbi`, …) are exported as typed `as const` values.
 
 ## Contributing
 

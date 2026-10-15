@@ -92,6 +92,31 @@ test('routes all read resources, preserves exact query values and the server env
   assert.ok(token.http.headers instanceof Headers);
 });
 
+test('routes token locks, fee routers and rounds with their typed envelopes', async (t) => {
+  const requests = [];
+  const lock = { kind: 'revenue', id: 'revenue-3', chainId: 46630, lockId: '3', amount: '1000', schedule: null, start: null, cliff: null, end: null };
+  const router = { router: '0x0000000000000000000000000000000000000001', launchpad: 'pons', holderBps: 5000, totals: [] };
+  const round = { chainId: 46630, purpose: 'airdrop', roundId: '0', evidence: '0x' + '11'.repeat(32), manifestUrl: null, recipients: 2 };
+  const baseUrl = await serve(t, (req, res) => {
+    requests.push(req.url);
+    const path = new URL(req.url, 'http://localhost').pathname;
+    if (path === '/api/v1/token/locks') json(res, envelope([lock]));
+    else if (path === '/api/v1/token/fee-routers') json(res, envelope([router]));
+    else if (path === '/api/v1/token/rounds') json(res, envelope([round], page));
+    else res.writeHead(404).end();
+  });
+  const sdk = client(baseUrl);
+  const locks = await sdk.token.locks.list();
+  const routers = await sdk.token.feeRouters.list();
+  const rounds = await sdk.token.rounds.list({ page: 2 });
+  assert.deepEqual(requests, ['/api/v1/token/locks', '/api/v1/token/fee-routers', '/api/v1/token/rounds?page=2']);
+  assert.deepEqual(locks.data, [lock]);
+  assert.deepEqual(routers.data, [router]);
+  assert.deepEqual(rounds.data, [round]);
+  assert.deepEqual(rounds.pagination, page);
+  assert.equal(rounds.http.status, 200);
+});
+
 test('structured rate limits preserve status, code, request ID, headers and Retry-After without retries', async (t) => {
   let calls = 0;
   const baseUrl = await serve(t, (_req, res) => {
