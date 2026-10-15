@@ -56,6 +56,15 @@ async function consume() {
     void [chainId, protocol, poolId, pairedToken];
   }
   const latestTrade: string | null = token.data.latestTradeAt;
+  const locks = await sdk.token.locks.list();
+  const lockKind: 'time' | 'revenue' | undefined = locks.data[0]?.kind;
+  const lockProof: string | undefined = locks.data[0]?.id;
+  const feeRouters = await sdk.token.feeRouters.list();
+  const launchpad: 'pons' | 'stockereum' | undefined = feeRouters.data[0]?.launchpad;
+  const rounds = await sdk.token.rounds.list({ page: 2 });
+  const manifestUrl: string | null | undefined = rounds.data[0]?.manifestUrl;
+  const roundPage: number = rounds.pagination.page;
+  void [lockKind, lockProof, launchpad, manifestUrl, roundPage];
   const error = null as unknown as ClaireAPIError;
   const retry: number | null = error.retryAfterSeconds;
   const responseError = null as unknown as ClaireResponseError;
@@ -80,6 +89,10 @@ async function consume() {
   await sdk.telegram.messages.list('chat', { before: '42' });
   // @ts-expect-error read-only API has no mutation method
   await sdk.knowledge.create({ title: 'not supported' });
+  // @ts-expect-error rounds page is numeric
+  await sdk.token.rounds.list({ page: '2' });
+  // @ts-expect-error locks take no query
+  await sdk.token.locks.list({ page: 1 });
   // @ts-expect-error exact response data is not an untyped object
   const invalid: number = token.data.holders?.trackedBalanceRaw;
   void invalid;

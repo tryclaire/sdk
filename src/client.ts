@@ -5,7 +5,7 @@ import type {
   AssetsResponse, AssetResponse, TelegramChatsResponse, TelegramMessagesResponse,
   XMentionsResponse, TokenResponse, ListKnowledgeParams, GetKnowledgeItemParams,
   ListAssetsParams, ListTelegramChatsParams, ListTelegramMessagesParams,
-  ListXMentionsParams,
+  ListXMentionsParams, TokenLocksResponse, FeeRoutersResponse, TokenRoundsResponse, ListTokenRoundsParams,
 } from "./types.js";
 
 export interface ClaireOptions {
@@ -125,6 +125,16 @@ export class Claire {
 
   readonly token = {
     get: (options?: RequestOptions) => this.#get<TokenResponse>("token", {}, options),
+    locks: {
+      list: (options?: RequestOptions) => this.#get<TokenLocksResponse>("token/locks", {}, options),
+    },
+    feeRouters: {
+      list: (options?: RequestOptions) => this.#get<FeeRoutersResponse>("token/fee-routers", {}, options),
+    },
+    rounds: {
+      list: (query: ListTokenRoundsParams = {}, options?: RequestOptions) =>
+        this.#get<TokenRoundsResponse>("token/rounds", query, options),
+    },
   };
 
   async #get<T>(path: string, query: object, options: RequestOptions = {}): Promise<SDKResponse<T>> {
