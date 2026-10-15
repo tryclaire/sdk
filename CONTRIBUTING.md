@@ -14,11 +14,12 @@ database/provider access are needed.
 
 ## Protocol module
 
-`src/protocol/abis.ts` is generated from the protocol repository's exported ABIs. With the
-[protocol](https://github.com/tryclaire/protocol) checked out next to this repository (or
-`CLAIRE_PROTOCOL_DIR` set), run `npm run sync-abis` after its ABIs change and `npm run check:abis`
-to verify. `npm run test:integration` deploys the built protocol contracts (`forge build` there
-first) to local anvil chains and runs every verifier against them; it needs Foundry's `anvil`.
+`src/protocol/abis.ts` and the integration test's contract artifacts (`test/integration/artifacts.json`)
+are generated from the protocol repository. With the [protocol](https://github.com/tryclaire/protocol)
+checked out next to this repository (or `CLAIRE_PROTOCOL_DIR` set) and built with `forge build`, run
+`npm run sync-abis` after it changes and `npm run check:abis` to verify. `npm run test:integration`
+deploys those artifacts to local anvil chains and runs every verifier against them; it needs Foundry's
+`anvil`.
 
 ### Installing unreleased versions
 

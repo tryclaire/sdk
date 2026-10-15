@@ -1,13 +1,11 @@
-// Deploys the real Claire contracts (forge artifacts from the protocol repo, `forge build` first) and the protocol's launchpad
-// mocks to local anvil chains, then runs every verifier against them, including tampered and forged inputs.
-// CLAIRE_PROTOCOL_DIR points at the protocol checkout (default ../tryclaire-protocol); anvil must be on PATH.
+// Deploys the real Claire contracts and the protocol's launchpad mocks (artifacts.json, synced from the protocol build by
+// `npm run sync-abis`) to local anvil chains, then runs every verifier against them, including tampered and forged
+// inputs. anvil must be on PATH.
 import assert from "node:assert/strict";
 import { spawn } from "node:child_process";
 import { readFileSync } from "node:fs";
 import { createServer } from "node:net";
-import { join } from "node:path";
 import { after, before, test } from "node:test";
-import { fileURLToPath } from "node:url";
 import { createPublicClient, createTestClient, createWalletClient, getAddress, getContractAddress, http, keccak256, toHex, zeroHash } from "viem";
 import {
   claireDistributorAbi, claireFeeRouterAbi, claireRevenueLockAbi, claireRouterFactoryAbi, claireTokenLockAbi,
@@ -15,12 +13,9 @@ import {
   verifyLaunch, verifyLock, verifyRevenueLock, verifyRound, verifyRouterSplit,
 } from "../../dist/protocol/index.js";
 
-const protocol = process.env.CLAIRE_PROTOCOL_DIR || fileURLToPath(new URL("../../../tryclaire-protocol", import.meta.url));
-const artifact = (file, name) => {
-  const json = JSON.parse(readFileSync(join(protocol, "out", `${file}.sol`, `${name}.json`), "utf8"));
-  return { abi: json.abi, bytecode: json.bytecode.object };
-};
-const mocks = (name) => artifact(name === "DecimalToken" ? "Mocks" : "LaunchpadMocks", name);
+const artifacts = JSON.parse(readFileSync(new URL("./artifacts.json", import.meta.url), "utf8"));
+const artifact = (_file, name) => artifacts[name];
+const mocks = (name) => artifacts[name];
 const failed = (result) => result.checks.filter((check) => !check.ok).map((check) => check.id);
 const passes = (result, what) => assert.ok(result.ok, `${what}: ${JSON.stringify(result.checks.filter((check) => !check.ok))}`);
 

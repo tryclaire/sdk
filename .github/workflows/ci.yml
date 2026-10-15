@@ -36,27 +36,14 @@ jobs:
     steps:
       - uses: actions/checkout@d23441a48e516b6c34aea4fa41551a30e30af803 # v6
         with:
-          path: sdk
-          persist-credentials: false
-      - uses: actions/checkout@d23441a48e516b6c34aea4fa41551a30e30af803 # v6
-        with:
-          repository: tryclaire/protocol
-          path: tryclaire-protocol
-          submodules: recursive
           persist-credentials: false
       - uses: actions/setup-node@249970729cb0ef3589644e2896645e5dc5ba9c38 # v6
         with:
           node-version: 22
           cache: npm
-          cache-dependency-path: sdk/package-lock.json
+      # anvil only; the contract artifacts are committed in test/integration/artifacts.json.
       - uses: foundry-rs/foundry-toolchain@908c540300062bd5a7e473851cdb4282204cee09 # v1.9.1
         with:
           version: v1.8.3
-      - run: forge build
-        working-directory: tryclaire-protocol
       - run: npm ci --ignore-scripts
-        working-directory: sdk
-      - run: npm run check:abis
-        working-directory: sdk
       - run: npm run test:integration
-        working-directory: sdk

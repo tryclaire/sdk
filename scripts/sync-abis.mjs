@@ -1,4 +1,5 @@
-// Regenerates src/protocol/abis.ts from the Claire protocol repository's exported ABIs.
+// Regenerates src/protocol/abis.ts from the Claire protocol repository's exported ABIs, and the integration test's
+// contract artifacts (test/integration/artifacts.json, ABI + creation bytecode) from its `forge build` output.
 // Usage: node scripts/sync-abis.mjs [--check]   (CLAIRE_PROTOCOL_DIR defaults to ../tryclaire-protocol)
 import { createHash } from "node:crypto";
 import { readFileSync, writeFileSync } from "node:fs";
@@ -8,7 +9,11 @@ import { fileURLToPath } from "node:url";
 const root = fileURLToPath(new URL("..", import.meta.url));
 const protocol = resolve(root, process.env.CLAIRE_PROTOCOL_DIR || "../tryclaire-protocol");
 const target = resolve(root, "src/protocol/abis.ts");
+const artifactsTarget = resolve(root, "test/integration/artifacts.json");
 const contracts = ["ClaireDistributor", "ClaireFeeRouter", "ClaireRouterFactory", "ClaireTokenLock", "ClaireRevenueLock"];
+// Contracts and test mocks the integration test deploys, as [source file, contract].
+const deployed = [...contracts.map((name) => [name, name]), ["LocalClaireToken", "LocalClaireToken"], ["Mocks", "DecimalToken"],
+  ...["MockPonsEscrow", "MockPonsFactory", "MockPonsLaunchRouter", "MockPonsHook", "MockPonsCurve", "MockStockereumEscrow", "MockStockereumFactory"].map((name) => ["LaunchpadMocks", name])];
 const sha256 = (bytes) => createHash("sha256").update(bytes).digest("hex");
 
 const manifestBytes = readFileSync(resolve(protocol, "abi/manifest.json"));
@@ -19,13 +24,19 @@ for (const name of contracts) {
   if (manifest.contracts?.[name]?.abiSha256 !== sha256(bytes)) throw new Error(`abi/${name}.json does not match abi/manifest.json; rerun the protocol export`);
   output += `\nexport const ${name[0].toLowerCase()}${name.slice(1)}Abi = ${JSON.stringify(JSON.parse(bytes))} as const;\n`;
 }
+const artifacts = Object.fromEntries(deployed.map(([file, name]) => {
+  const json = JSON.parse(readFileSync(resolve(protocol, "out", `${file}.sol`, `${name}.json`), "utf8"));
+  return [name, { abi: json.abi, bytecode: json.bytecode.object }];
+}));
+const artifactsOutput = `${JSON.stringify(artifacts)}\n`;
 
 if (process.argv.includes("--check")) {
-  let current = "";
-  try { current = readFileSync(target, "utf8"); } catch { /* reported below */ }
-  if (current !== output) { console.error("src/protocol/abis.ts is stale; run npm run sync-abis"); process.exit(1); }
-  console.log("Protocol ABIs match the protocol export");
+  const read = (file) => { try { return readFileSync(file, "utf8"); } catch { return ""; } };
+  if (read(target) !== output) { console.error("src/protocol/abis.ts is stale; run npm run sync-abis"); process.exit(1); }
+  if (read(artifactsTarget) !== artifactsOutput) { console.error("test/integration/artifacts.json is stale; run forge build in the protocol repo, then npm run sync-abis"); process.exit(1); }
+  console.log("Protocol ABIs and test artifacts match the protocol build");
 } else {
   writeFileSync(target, output);
-  console.log(`Wrote src/protocol/abis.ts (${contracts.length} contracts)`);
+  writeFileSync(artifactsTarget, artifactsOutput);
+  console.log(`Wrote src/protocol/abis.ts (${contracts.length} contracts) and test/integration/artifacts.json (${deployed.length} artifacts)`);
 }
