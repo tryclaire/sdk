@@ -12,6 +12,14 @@ typecheck consumer usage, and install a packed tarball into a disposable consume
 its public imports and declarations. CI runs on Node.js 22 and 24. No real keys or hosted
 database/provider access are needed.
 
+## Protocol module
+
+`src/protocol/abis.ts` is generated from the protocol repository's exported ABIs. With the
+[protocol](https://github.com/tryclaire/protocol) checked out next to this repository (or
+`CLAIRE_PROTOCOL_DIR` set), run `npm run sync-abis` after its ABIs change and `npm run check:abis`
+to verify. `npm run test:integration` deploys the built protocol contracts (`forge build` there
+first) to local anvil chains and runs every verifier against them; it needs Foundry's `anvil`.
+
 ### Installing unreleased versions
 
 `npm install github:tryclaire/sdk#<commit-sha>`. Git installs build the package during
