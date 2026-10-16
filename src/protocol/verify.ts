@@ -1,5 +1,6 @@
 import { BaseError, encodeAbiParameters, isAddress, keccak256, parseAbi, zeroAddress, zeroHash, type Address, type Hex, type PublicClient } from "viem";
 import { claireDistributorAbi, claireFeeRouterAbi, clairePriceLockAbi, claireRevenueLockAbi, claireRouterDeployerAbi, claireRouterFactoryAbi, claireSplitAbi, claireTokenLockAbi, claireVaultFactoryAbi, claireVestingVaultAbi } from "./abis.js";
+import { deployments } from "./deployments.js";
 import { manifestEvidence, merkleRoot, roundLeafHash, type RoundLeaf } from "./hash.js";
 import { pinBlock, readLaunch, readLock, readPriceLock, readRevenueLock, readRound, readSplit, readVestingVault, type ReadAt } from "./read.js";
 
@@ -7,7 +8,7 @@ export type Check = { id: string; ok: boolean; detail: string };
 /** `ok` is true only when every check passed. `facts` holds what was read and recomputed, so callers can show it. */
 export type Verification<Facts> = { ok: boolean; checks: Check[]; facts: Facts };
 
-/** Event scans run from `fromBlock` (default 0) to `toBlock` (default: the pinned block) in `chunk`-sized requests. */
+/** Event scans run from `fromBlock` to `toBlock` (default: the pinned block) in `chunk`-sized requests. `fromBlock` defaults to the `block` of the chain's entry in `deployments`, else 0: pass the deployment block for a deployment that is not listed. */
 export type ScanOptions = { fromBlock?: bigint; toBlock?: bigint; chunk?: bigint };
 
 const erc20Abi = parseAbi([
@@ -39,7 +40,13 @@ async function scan<T>(from: bigint, to: bigint, chunk: bigint, get: (from: bigi
 /** Resolves the pinned block and the scan range once for a verifier. */
 async function range(client: PublicClient, input: ReadAt & ScanOptions) {
   const { blockNumber, timestamp } = await pinBlock(client, input.toBlock ?? input.blockNumber);
-  return { blockNumber, timestamp, from: input.fromBlock ?? ZERO, chunk: input.chunk ?? BigInt(10_000) };
+  return { blockNumber, timestamp, from: input.fromBlock ?? await defaultFrom(client), chunk: input.chunk ?? BigInt(10_000) };
+}
+
+/** The listed deployment's block for this chain (a failed chain id read falls back to 0, the always-correct start). */
+async function defaultFrom(client: PublicClient) {
+  const chainId = client.chain?.id ?? await client.getChainId().catch(() => undefined);
+  return (chainId === undefined ? undefined : deployments[chainId]?.block) ?? ZERO;
 }
 
 const blockTimes = new WeakMap<PublicClient, Map<bigint, bigint>>();

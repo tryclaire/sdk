@@ -267,8 +267,9 @@ if (!round.ok) console.log(round.checks.filter((check) => !check.ok));
 
 Each verifier returns `{ ok, checks: [{ id, ok, detail }], facts }`. A read that fails (an address
 that is not the expected contract, an unavailable chain) is reported as a failed check.
-Event scans start at `fromBlock` (default `0n`; set it to the deployment block on public
-chains) and run in `chunk`-sized requests (default `10_000n`).
+Event scans start at `fromBlock` and run in `chunk`-sized requests (default `10_000n`). `fromBlock` defaults to the
+`block` of the chain's entry in `deployments` (the chain height before the protocol was deployed), else `0n`: on a
+public chain not listed there, pass the deployment block, or the scans walk the whole chain history.
 
 | Function | Verifies |
 | --- | --- |
@@ -305,7 +306,7 @@ tree, as in `ClaireDistributor`) and `manifestEvidence`. Readers (`readLaunch`, 
 (`readProof` is the `ClaireProofView` call: launch facts, revenue per quote and launch token, and locked amounts in every lock contract), and the
 contract ABIs (`claireFeeRouterAbi`, `clairePriceLockAbi`, …) are exported as typed `as const` values.
 
-`ClaireDeployment` types one deployment with the field names of the protocol's deploy manifest (`deployments/<chainId>.json`): `routerFactory`, `routerDeployer`, `tokenLock`, `revenueLock`, `priceLock`, `distributorFactory`, `vaultFactory`, `proofView`, `claireHolderDistributor`, `referralDistributor`, `treasury` and `feeToken`. The `deployments` map (by chain ID) is empty until the Claire protocol is deployed; every function still takes explicit addresses.
+`ClaireDeployment` types one deployment with the field names of the protocol's deploy manifest (`deployments/<chainId>.json`): `routerFactory`, `routerDeployer`, `tokenLock`, `revenueLock`, `priceLock`, `distributorFactory`, `vaultFactory`, `proofView`, `claireHolderDistributor`, `referralDistributor`, `treasury`, `feeToken` and `block` (the chain height before the deployment transactions, the verifiers' default `fromBlock`). The `deployments` map (by chain ID) is empty until the Claire protocol is deployed; every function still takes explicit addresses.
 
 ## Contributing
 

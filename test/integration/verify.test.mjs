@@ -9,7 +9,7 @@ import { after, before, test } from "node:test";
 import { createPublicClient, createTestClient, createWalletClient, encodeAbiParameters, getAddress, getContractAddress, http, keccak256, toHex, zeroAddress, zeroHash } from "viem";
 import {
   claireDistributorAbi, claireDistributorFactoryAbi, claireFeeRouterAbi, clairePriceLockAbi, claireProofViewAbi, claireRevenueLockAbi, claireRouterDeployerAbi, claireRouterFactoryAbi, claireSplitAbi, claireTokenLockAbi, claireVaultFactoryAbi, claireVestingVaultAbi,
-  manifestEvidence, merkleProof, merkleRoot, readLaunch, readLock, readPriceLock, readProof, readRevenueLock, readRound, readRouter, readSplit, readVestingVault, roundLeafHash,
+  manifestEvidence, merkleProof, merkleRoot, readLaunch, readLock, readPriceLock, readProof, readRevenueLock, readRound, readRouter, readSplit, readVestingVault, roundLeafHash, deployments,
   verifyLaunch, verifyLock, verifyPriceLock, verifyRevenueLock, verifyRound, verifyRouterSplit, verifySplit, verifyVestingVault,
 } from "../../dist/protocol/index.js";
 
@@ -162,6 +162,14 @@ test("launches: a locked opening buy, a plain launch, a Stockereum launch and a 
   passes(await verifyLaunch(a.pub, { token: forged.token, routerFactory: attackerFactory }), "attacker factory is self-consistent");
   assert.ok(failed(await verifyLaunch(a.pub, { token: locked.token, routerFactory, tokenLock: creator })).includes("token-lock"));
   assert.ok(failed(await verifyLaunch(a.pub, { token: locked.token, routerFactory, fromBlock: locked.receipt.blockNumber })).includes("router-deployed"), "the factory's RouterDeployed event is out of range");
+  // Without fromBlock the scan starts at the chain's listed deployment block, not 0: a listed block after the router's creation misses its events, an earlier one finds them.
+  const listed = { ...Object.fromEntries(["routerFactory", "routerDeployer", "tokenLock", "revenueLock", "priceLock", "distributorFactory", "vaultFactory", "proofView", "claireHolderDistributor", "referralDistributor", "treasury", "feeToken"].map((key) => [key, zeroAddress])) };
+  try {
+    deployments[a.chainId] = { ...listed, block: locked.receipt.blockNumber };
+    assert.ok(failed(await verifyLaunch(a.pub, { token: locked.token, routerFactory })).includes("router-deployed"), "the default scan starts at the listed deployment block");
+    deployments[a.chainId] = { ...listed, block: 0n };
+    passes(await verifyLaunch(a.pub, { token: locked.token, routerFactory }), "listed block before the launch");
+  } finally { delete deployments[a.chainId]; }
   assert.equal((await verifyLaunch(a.pub, { token: locked.token, routerFactory: creator })).ok, false, "an address that is not a factory fails instead of throwing");
 });
 
