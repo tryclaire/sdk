@@ -1941,7 +1941,7 @@
           "Token"
         ],
         "summary": "List fee routers",
-        "description": "Lists the organization's confirmed Claire fee routers with their immutable configuration and the sums of confirmed harvests per asset. It makes no RPC request.",
+        "description": "Lists the organization's confirmed Claire fee routers with their current terms (holder share, payee, any pending creator share change and the history of changes) and the sums of confirmed harvests per asset. It makes no RPC request.",
         "operationId": "listFeeRouters",
         "x-required-scope": "token:read",
         "parameters": [],
@@ -4283,12 +4283,17 @@
           "payee",
           "payeeKind",
           "payeeTerms",
+          "pendingPayee",
+          "payeeChangeAt",
+          "payeeChanges",
           "buyback",
           "holderBps",
           "projectHolderDistributor",
           "claireHolderDistributor",
           "treasury",
           "launchedToken",
+          "migrated",
+          "migration",
           "totals",
           "deployedAt"
         ],
@@ -4315,7 +4320,7 @@
           },
           "payee": {
             "type": "string",
-            "description": "Receives the creator share of every distribution: the creator, or a vesting vault or split deployed through Claire's vault factory. Fixed at deployment."
+            "description": "Receives the creator share of every distribution now: the creator, or a vesting vault or split deployed through Claire's vault factory. The creator can change it only through a proposal published 7 days before it takes effect (pendingPayee, payeeChangeAt); fees collected until then go to this address."
           },
           "payeeKind": {
             "type": "string",
@@ -4374,7 +4379,73 @@
             "type": "integer",
             "minimum": 0,
             "maximum": 9000,
-            "description": "Project holders' share of trading revenue, in basis points."
+            "description": "Project holders' share of trading revenue now, in basis points. The creator can only raise it, never lower it."
+          },
+          "pendingPayee": {
+            "type": [
+              "string",
+              "null"
+            ],
+            "description": "A creator share destination the creator proposed; null when none is pending."
+          },
+          "payeeChangeAt": {
+            "type": [
+              "string",
+              "null"
+            ],
+            "format": "date-time",
+            "description": "When anyone can apply the pending change (7 days after it was proposed); null when none is pending."
+          },
+          "payeeChanges": {
+            "type": "array",
+            "description": "Every confirmed holder share raise and creator share change this app recorded for the router, oldest first.",
+            "items": {
+              "type": "object",
+              "additionalProperties": false,
+              "required": [
+                "type",
+                "at",
+                "transactionHash"
+              ],
+              "properties": {
+                "type": {
+                  "type": "string",
+                  "enum": [
+                    "holder_share_raised",
+                    "payee_change_proposed",
+                    "payee_change_canceled",
+                    "payee_changed"
+                  ]
+                },
+                "at": {
+                  "type": "string",
+                  "format": "date-time"
+                },
+                "from": {
+                  "type": [
+                    "string",
+                    "integer"
+                  ],
+                  "description": "Previous holder share (bps) or previous payee address."
+                },
+                "to": {
+                  "type": "integer"
+                },
+                "payee": {
+                  "type": "string"
+                },
+                "effectiveAt": {
+                  "type": "string",
+                  "format": "date-time"
+                },
+                "transactionHash": {
+                  "type": [
+                    "string",
+                    "null"
+                  ]
+                }
+              }
+            }
           },
           "projectHolderDistributor": {
             "type": "string"
@@ -4390,7 +4461,61 @@
               "string",
               "null"
             ],
-            "description": "The organization's linked token when this router launched it."
+            "description": "The organization's linked token when this router launched or adopted it."
+          },
+          "migrated": {
+            "type": "boolean",
+            "description": "True when this router adopted a token that was launched on pons outside Claire (path 3, 'Bring this token to Claire')."
+          },
+          "migration": {
+            "description": "The confirmed adoption: when, the one-time migration fee (raw units of its stablecoin, split treasury / $CLAIRE holders) and what the router paid the creator uncharged from before the migration. Null when the router launched its token itself or has not adopted one.",
+            "oneOf": [
+              {
+                "type": "null"
+              },
+              {
+                "type": "object",
+                "additionalProperties": false,
+                "properties": {
+                  "adoptedAt": {
+                    "type": "string"
+                  },
+                  "migrationFee": {
+                    "type": "string"
+                  },
+                  "migrationFeeToken": {
+                    "type": "string"
+                  },
+                  "treasury": {
+                    "type": "string"
+                  },
+                  "claireHolders": {
+                    "type": "string"
+                  },
+                  "historicalPayouts": {
+                    "type": "array",
+                    "items": {
+                      "type": "object",
+                      "additionalProperties": false,
+                      "properties": {
+                        "asset": {
+                          "type": "string"
+                        },
+                        "amount": {
+                          "type": "string"
+                        }
+                      }
+                    }
+                  },
+                  "transactionHash": {
+                    "type": [
+                      "string",
+                      "null"
+                    ]
+                  }
+                }
+              }
+            ]
           },
           "totals": {
             "type": "array",
@@ -4479,7 +4604,7 @@
           "manifestUrl",
           "publishedAt"
         ],
-        "description": "Rounds are cumulative: each publishes a new root for one asset whose leaves carry every account's running total. A claim pays an account its cumulative amount minus what it already received, against the asset's latest root, so one claim collects every round. Manifest version 2.",
+        "description": "Rounds are cumulative: each publishes a new root for one asset whose leaves carry every account's running total. A claim pays an account its cumulative amount minus what it already received, against the asset's latest root, so one claim collects every round. Manifest version 1.",
         "properties": {
           "chainId": {
             "type": "integer",
@@ -4683,7 +4808,7 @@
               "object",
               "null"
             ],
-            "description": "Null when the token was not launched through Claire.",
+            "description": "Null when the token was not launched through Claire. Migrated tokens (launched on pons first, then brought to Claire) are included.",
             "additionalProperties": false,
             "properties": {
               "router": {
@@ -4700,7 +4825,8 @@
                 "type": "string"
               },
               "payee": {
-                "type": "string"
+                "type": "string",
+                "description": "Receives the creator share now. The creator can change it with 7 days' public notice (see pendingPayee)."
               },
               "payeeKind": {
                 "type": "string",
@@ -4713,7 +4839,34 @@
               },
               "holderBps": {
                 "type": "integer",
-                "minimum": 0
+                "minimum": 0,
+                "description": "Current holder share; it can only go up."
+              },
+              "pendingPayee": {
+                "type": [
+                  "object",
+                  "null"
+                ],
+                "description": "A creator share destination change the creator proposed: it takes effect when anyone applies it after effectiveAt (7 days after the proposal). Null when none is pending.",
+                "additionalProperties": false,
+                "properties": {
+                  "address": {
+                    "type": "string"
+                  },
+                  "kind": {
+                    "type": "string",
+                    "enum": [
+                      "creator",
+                      "vault",
+                      "split",
+                      "other"
+                    ]
+                  },
+                  "effectiveAt": {
+                    "type": "string",
+                    "format": "date-time"
+                  }
+                }
               },
               "buyback": {
                 "type": [
@@ -4721,6 +4874,29 @@
                   "null"
                 ],
                 "description": "pons only."
+              },
+              "migrated": {
+                "type": [
+                  "object",
+                  "null"
+                ],
+                "description": "Set when the router adopted a token launched outside Claire (read from the router's Adopted event); null for tokens launched through Claire. Fees before the migration were never charged.",
+                "additionalProperties": false,
+                "properties": {
+                  "at": {
+                    "type": [
+                      "string",
+                      "null"
+                    ],
+                    "description": "ISO time of the adoption block; null when it could not be read."
+                  },
+                  "block": {
+                    "type": [
+                      "string",
+                      "null"
+                    ]
+                  }
+                }
               }
             }
           },

@@ -288,7 +288,7 @@ export interface paths {
         };
         /**
          * List fee routers
-         * @description Lists the organization's confirmed Claire fee routers with their immutable configuration and the sums of confirmed harvests per asset. It makes no RPC request.
+         * @description Lists the organization's confirmed Claire fee routers with their current terms (holder share, payee, any pending creator share change and the history of changes) and the sums of confirmed harvests per asset. It makes no RPC request.
          */
         get: operations["listFeeRouters"];
         put?: never;
@@ -722,7 +722,7 @@ export interface components {
             launchpad: "pons" | "stockereum";
             /** @description The launcher: the only wallet that can launch through the router, switch its buyback or publish its holder rounds. */
             creator: string;
-            /** @description Receives the creator share of every distribution: the creator, or a vesting vault or split deployed through Claire's vault factory. Fixed at deployment. */
+            /** @description Receives the creator share of every distribution now: the creator, or a vesting vault or split deployed through Claire's vault factory. The creator can change it only through a proposal published 7 days before it takes effect (pendingPayee, payeeChangeAt); fees collected until then go to this address. */
             payee: string;
             /** @enum {string} */
             payeeKind: "creator" | "vault" | "split";
@@ -737,13 +737,49 @@ export interface components {
             };
             /** @description pons only: whether the launchpad diverts fees into the buyback, as last switched by the creator; null when unknown (Stockereum, or not launched). When on, vested launch tokens are collected as revenue and appear in totals under the launch token's address. */
             buyback: boolean | null;
-            /** @description Project holders' share of trading revenue, in basis points. */
+            /** @description Project holders' share of trading revenue now, in basis points. The creator can only raise it, never lower it. */
             holderBps: number;
+            /** @description A creator share destination the creator proposed; null when none is pending. */
+            pendingPayee: string | null;
+            /**
+             * Format: date-time
+             * @description When anyone can apply the pending change (7 days after it was proposed); null when none is pending.
+             */
+            payeeChangeAt: string | null;
+            /** @description Every confirmed holder share raise and creator share change this app recorded for the router, oldest first. */
+            payeeChanges: {
+                /** @enum {string} */
+                type: "holder_share_raised" | "payee_change_proposed" | "payee_change_canceled" | "payee_changed";
+                /** Format: date-time */
+                at: string;
+                /** @description Previous holder share (bps) or previous payee address. */
+                from?: string | number;
+                to?: number;
+                payee?: string;
+                /** Format: date-time */
+                effectiveAt?: string;
+                transactionHash: string | null;
+            }[];
             projectHolderDistributor: string;
             claireHolderDistributor: string;
             treasury: string;
-            /** @description The organization's linked token when this router launched it. */
+            /** @description The organization's linked token when this router launched or adopted it. */
             launchedToken: string | null;
+            /** @description True when this router adopted a token that was launched on pons outside Claire (path 3, 'Bring this token to Claire'). */
+            migrated: boolean;
+            /** @description The confirmed adoption: when, the one-time migration fee (raw units of its stablecoin, split treasury / $CLAIRE holders) and what the router paid the creator uncharged from before the migration. Null when the router launched its token itself or has not adopted one. */
+            migration: null | {
+                adoptedAt?: string;
+                migrationFee?: string;
+                migrationFeeToken?: string;
+                treasury?: string;
+                claireHolders?: string;
+                historicalPayouts?: {
+                    asset?: string;
+                    amount?: string;
+                }[];
+                transactionHash?: string | null;
+            };
             /** @description Sums of confirmed harvests per asset, in raw units of that asset. */
             totals: {
                 /** @description Quote asset; the zero address is native ETH. */
@@ -761,7 +797,7 @@ export interface components {
             /** Format: date-time */
             deployedAt: string;
         };
-        /** @description Rounds are cumulative: each publishes a new root for one asset whose leaves carry every account's running total. A claim pays an account its cumulative amount minus what it already received, against the asset's latest root, so one claim collects every round. Manifest version 2. */
+        /** @description Rounds are cumulative: each publishes a new root for one asset whose leaves carry every account's running total. A claim pays an account its cumulative amount minus what it already received, against the asset's latest root, so one claim collects every round. Manifest version 1. */
         TokenRound: {
             /** @description Chain of the distributor. */
             chainId: number;
@@ -819,18 +855,34 @@ export interface components {
             } | null;
             /** @description Whether a Claire router factory registered the token's launch. */
             claire: boolean;
-            /** @description Null when the token was not launched through Claire. */
+            /** @description Null when the token was not launched through Claire. Migrated tokens (launched on pons first, then brought to Claire) are included. */
             launch: {
                 router?: string;
                 /** @enum {string} */
                 launchpad?: "pons" | "stockereum";
                 creator?: string;
+                /** @description Receives the creator share now. The creator can change it with 7 days' public notice (see pendingPayee). */
                 payee?: string;
                 /** @enum {string} */
                 payeeKind?: "creator" | "vault" | "split" | "other";
+                /** @description Current holder share; it can only go up. */
                 holderBps?: number;
+                /** @description A creator share destination change the creator proposed: it takes effect when anyone applies it after effectiveAt (7 days after the proposal). Null when none is pending. */
+                pendingPayee?: {
+                    address?: string;
+                    /** @enum {string} */
+                    kind?: "creator" | "vault" | "split" | "other";
+                    /** Format: date-time */
+                    effectiveAt?: string;
+                } | null;
                 /** @description pons only. */
                 buyback?: boolean | null;
+                /** @description Set when the router adopted a token launched outside Claire (read from the router's Adopted event); null for tokens launched through Claire. Fees before the migration were never charged. */
+                migrated?: {
+                    /** @description ISO time of the adoption block; null when it could not be read. */
+                    at?: string | null;
+                    block?: string | null;
+                } | null;
             } | null;
             /** @description Tokens the Claire lock contracts hold for locks of this token (vested but unclaimed included) and their share of total supply. */
             locked: {
