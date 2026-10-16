@@ -14,7 +14,7 @@ database/provider access are needed.
 
 ## Protocol module
 
-`src/protocol/abis.ts` (the ABIs of all 11 Claire v3 contracts) and the integration test's contract artifacts
+`src/protocol/abis.ts` (the ABIs of all 11 Claire contracts) and the integration test's contract artifacts
 (`test/integration/artifacts.json`: ABI and creation bytecode of those contracts plus the launchpad mocks)
 are generated from the Claire protocol repository. With the protocol repository
 checked out next to this repository (or `CLAIRE_PROTOCOL_DIR` set), exported (`abi/`) and built with `forge build`, run

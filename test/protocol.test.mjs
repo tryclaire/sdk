@@ -1,7 +1,7 @@
 import assert from "node:assert/strict";
 import test from "node:test";
 import { concat, keccak256 } from "viem";
-import { claireDistributorAbi, claireFeeRouterAbi, clairePriceLockAbi, claireProofViewAbi, claireRevenueLockAbi, claireSplitAbi, claireVaultFactoryAbi, claireVestingVaultAbi, deployments, manifestEvidence, merkleProof, merkleRoot, parseRoundManifest, roundLeafHash } from "../dist/protocol/index.js";
+import { claireDistributorAbi, claireFeeRouterAbi, clairePriceLockAbi, claireProofViewAbi, claireRevenueLockAbi, claireRouterDeployerAbi, claireSplitAbi, claireVaultFactoryAbi, claireVestingVaultAbi, deployments, manifestEvidence, merkleProof, merkleRoot, parseRoundManifest, roundLeafHash } from "../dist/protocol/index.js";
 
 const distributor = "0x00000000000000000000000000000000000000d1";
 const asset = "0x00000000000000000000000000000000000000a5";
@@ -41,15 +41,15 @@ test("Merkle root and proofs match the contract's sorted-pair layout for every t
   assert.throws(() => merkleProof(hashes, 5));
 });
 
-test("manifest parsing accepts the canonical v2 shape and rejects anything else", () => {
+test("manifest parsing accepts the canonical shape and rejects anything else", () => {
   const manifest = {
-    kind: "claire-round", version: 2, purpose: "claire-holders", chainId: 1, distributor, asset, previousEvidence: null, total: "10", cumulativeTotal: "15",
+    kind: "claire-round", version: 1, purpose: "claire-holders", chainId: 1, distributor, asset, previousEvidence: null, total: "10", cumulativeTotal: "15",
     snapshot: { chainId: 1, block: "5", token: distributor }, rule: { type: "pro-rata", distributable: "10", eligibleBalance: "3", excluded: [], minBalance: null },
     leaves: [{ account: leaves[0].account, amount: "10", cumulative: "10", balance: "3" }, { account: leaves[1].account, amount: "0", cumulative: "5", balance: null }],
   };
   assert.deepEqual(parseRoundManifest(JSON.stringify(manifest)), manifest);
   const bad = (patch, pattern) => assert.throws(() => parseRoundManifest(JSON.stringify({ ...manifest, ...patch })), pattern);
-  bad({ version: 1 }, /kind or version/);
+  bad({ version: 2 }, /kind or version/);
   bad({ previousEvidence: "0xAB" }, /previousEvidence/);
   bad({ leaves: [{ ...manifest.leaves[0], amount: "11" }] }, /leaf 0/);
   bad({ leaves: [manifest.leaves[1], manifest.leaves[0]] }, /ascending/);
@@ -57,9 +57,10 @@ test("manifest parsing accepts the canonical v2 shape and rejects anything else"
   bad({ distributor: distributor.toUpperCase().replace("0X", "0x") }, /distributor/);
 });
 
-test("exports every v3 contract surface", () => {
+test("exports every contract surface", () => {
   const names = (abi) => abi.map((item) => item.name);
   assert.ok(names(claireFeeRouterAbi).includes("payee") && names(claireFeeRouterAbi).includes("setBuyback") && names(claireFeeRouterAbi).includes("stockereumPoolId") && names(claireFeeRouterAbi).includes("BuybackSet"));
+  assert.ok(["raiseHolderShare", "proposePayee", "cancelPayee", "applyPayee", "pendingPayee", "payeeChangeAt", "PAYEE_DELAY", "HolderShareRaised", "PayeeChanged"].every((name) => names(claireFeeRouterAbi).includes(name)) && names(claireRouterDeployerAbi).includes("predict"));
   assert.ok(names(claireRevenueLockAbi).includes("RevenueLockCreated") && names(clairePriceLockAbi).includes("highWater") && names(claireProofViewAbi).includes("proof"));
   assert.ok(names(claireDistributorAbi).includes("cumulativeTotal") && names(claireVestingVaultAbi).includes("vested") && names(claireSplitAbi).includes("shares") && names(claireVaultFactoryAbi).includes("predictVault"));
   assert.deepEqual(deployments, {});

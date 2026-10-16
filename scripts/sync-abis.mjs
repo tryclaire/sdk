@@ -10,7 +10,7 @@ const root = fileURLToPath(new URL("..", import.meta.url));
 const protocol = resolve(root, process.env.CLAIRE_PROTOCOL_DIR || "../tryclaire-protocol");
 const target = resolve(root, "src/protocol/abis.ts");
 const artifactsTarget = resolve(root, "test/integration/artifacts.json");
-const contracts = ["ClaireDistributor", "ClaireDistributorFactory", "ClaireFeeRouter", "ClairePriceLock", "ClaireProofView", "ClaireRevenueLock", "ClaireRouterFactory", "ClaireSplit", "ClaireTokenLock", "ClaireVaultFactory", "ClaireVestingVault"];
+const contracts = ["ClaireDistributor", "ClaireDistributorFactory", "ClaireFeeRouter", "ClairePriceLock", "ClaireProofView", "ClaireRevenueLock", "ClaireRouterDeployer", "ClaireRouterFactory", "ClaireSplit", "ClaireTokenLock", "ClaireVaultFactory", "ClaireVestingVault"];
 // Contracts and test mocks the integration test deploys, as [source file, contract].
 const deployed = [...contracts.map((name) => [name, name]), ["LocalClaireToken", "LocalClaireToken"], ["Mocks", "DecimalToken"],
   ...["MockPonsEscrow", "MockPonsFactory", "MockPonsLaunchRouter", "MockPonsHook", "MockPonsCurve", "MockPonsBuybackVault", "MockPoolManager", "MockStockereumEscrow", "MockStockereumFactory"].map((name) => ["LaunchpadMocks", name])];
