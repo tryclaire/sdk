@@ -1,5 +1,5 @@
-import { BaseError, isAddress, parseAbi, zeroAddress, zeroHash, type Address, type Hex, type PublicClient } from "viem";
-import { claireDistributorAbi, claireFeeRouterAbi, clairePriceLockAbi, claireRevenueLockAbi, claireRouterFactoryAbi, claireSplitAbi, claireTokenLockAbi, claireVaultFactoryAbi, claireVestingVaultAbi } from "./abis.js";
+import { BaseError, encodeAbiParameters, isAddress, keccak256, parseAbi, zeroAddress, zeroHash, type Address, type Hex, type PublicClient } from "viem";
+import { claireDistributorAbi, claireFeeRouterAbi, clairePriceLockAbi, claireRevenueLockAbi, claireRouterDeployerAbi, claireRouterFactoryAbi, claireSplitAbi, claireTokenLockAbi, claireVaultFactoryAbi, claireVestingVaultAbi } from "./abis.js";
 import { manifestEvidence, merkleRoot, roundLeafHash, type RoundLeaf } from "./hash.js";
 import { pinBlock, readLaunch, readLock, readPriceLock, readRevenueLock, readRound, readSplit, readVestingVault, type ReadAt } from "./read.js";
 
@@ -56,15 +56,20 @@ async function blockTime(client: PublicClient, blockNumber: bigint) {
 // ------------------------------------------------------------------ launch
 
 /**
- * The token is registered by the router factory, its router is a factory router launched for it, and the router's immutables match the factory
- * and the factory's `RouterDeployed` event (creator, payee, launchpad, holder routing). On Stockereum the router's pool id is the one the launchpad reported.
- * With `vaultFactory`, `facts.payeeKind` tells whether the payee is the creator, a genuine `ClaireVestingVault`, a genuine `ClaireSplit` or another address.
+ * The token is registered by the router factory, its router is a factory router that either launched it or adopted it, and the router's fixed configuration matches the factory
+ * and the factory's `RouterDeployed` event (creator, launchpad, holder routing). The router's address is the one the factory's router deployer predicts for its initial configuration (`routerDeployer`, default: the factory's own).
+ * The payee and holder share may differ from the deploy event only through the router's own events: the history of `HolderShareRaised`, `PayeeChangeProposed`, `PayeeChangeCanceled` and `PayeeChanged`
+ * is replayed from the deploy event's values (raises only go up, a payee change follows a proposal made 7 days earlier) and must end at the router's current values and pending proposal; `facts.initial`, `facts.holderShareRaises` and `facts.payeeChanges` report it.
+ * `facts.path` is `'launched'` (one `Launched` event) or `'migrated'` (an existing pons token: one `Adopted` event
+ * and the router's `MigrationFeePaid` payment); either way the router registered the token (`ClaireLaunchRegistered`). On Stockereum the router's pool id is the one the launchpad reported.
+ * With `vaultFactory`, `facts.payeeKind` tells whether the current payee is the creator, a genuine `ClaireVestingVault`, a genuine `ClaireSplit` or another address.
  */
-export async function verifyLaunch(client: PublicClient, input: { token: Address; routerFactory: Address; tokenLock?: Address; vaultFactory?: Address } & ReadAt & ScanOptions) {
+export async function verifyLaunch(client: PublicClient, input: { token: Address; routerFactory: Address; routerDeployer?: Address; tokenLock?: Address; vaultFactory?: Address } & ReadAt & ScanOptions) {
   const { add, attempt, finish } = collector();
   const { blockNumber, from, chunk } = await range(client, input);
   const launch = await attempt("registry", () => readLaunch(client, { token: input.token, routerFactory: input.routerFactory, blockNumber }));
-  const facts = { token: input.token, routerFactory: input.routerFactory, blockNumber, router: launch?.router ?? null, launch: launch?.routerFacts ?? null, launchBlock: null as bigint | null, payeeKind: null as "creator" | "vault" | "split" | "other" | null };
+  const facts = { token: input.token, routerFactory: input.routerFactory, blockNumber, router: launch?.router ?? null, launch: launch?.routerFacts ?? null, path: null as "launched" | "migrated" | null, launchBlock: null as bigint | null, payeeKind: null as "creator" | "vault" | "split" | "other" | null,
+    initial: null as { payee: Address; holderBps: number } | null, holderShareRaises: [] as { blockNumber: bigint; oldBps: number; newBps: number }[], payeeChanges: [] as { blockNumber: bigint; oldPayee: Address; newPayee: Address }[] };
   if (!launch) return finish(facts);
   const router = launch.routerFacts;
   if (!add("registered", launch.claireLaunched && launch.router !== null, launch.router ? `Factory records router ${launch.router}` : "The factory has no launch router for this token") || !router) return finish(facts);
@@ -77,32 +82,100 @@ export async function verifyLaunch(client: PublicClient, input: { token: Address
     client.readContract({ ...c, functionName: "claireHolderDistributor" }),
     client.readContract({ ...c, functionName: "feeToken" }),
     client.readContract({ ...c, functionName: "launchFee" }),
+    client.readContract({ ...c, functionName: "migrationFee" }),
     client.readContract({ ...c, functionName: pons ? "ponsFactory" : "stockereumFactory" }),
     client.readContract({ ...c, functionName: pons ? "ponsEscrow" : "stockereumEscrow" }),
     pons ? client.readContract({ ...c, functionName: "ponsLaunchRouter" }) : Promise.resolve(router.launchRouter),
     pons ? client.readContract({ ...c, functionName: "ponsBuybackVault" }) : Promise.resolve(zeroAddress),
   ]));
   if (expected) {
-    const actual = [router.treasury, router.claireHolderDistributor, router.feeToken, router.launchFee, router.launchFactory, router.escrow, router.launchRouter, router.buybackVault];
-    add("factory-config", expected.every((value, i) => String(value).toLowerCase() === String(actual[i]).toLowerCase()), "Router treasury, holder distributor, fee token, launch fee, launchpad addresses and buyback vault equal the factory's");
+    const actual = [router.treasury, router.claireHolderDistributor, router.feeToken, router.launchFee, router.migrationFee, router.launchFactory, router.escrow, router.launchRouter, router.buybackVault];
+    add("factory-config", expected.every((value, i) => String(value).toLowerCase() === String(actual[i]).toLowerCase()), "Router treasury, holder distributor, fee token, launch and migration fees, launchpad addresses and buyback vault equal the factory's");
   }
   if (input.tokenLock) add("token-lock", same(router.tokenLock, input.tokenLock), `Router's opening-buy lock is ${router.tokenLock}`);
-  const max = await attempt("holder-routing", () => client.readContract({ address: launch.router!, abi: claireFeeRouterAbi, functionName: "MAX_HOLDER_BPS", blockNumber }));
-  if (max !== undefined) add("holder-routing", router.holderBps <= max && (router.holderBps === 0) === same(router.projectHolderDistributor, zeroAddress), `holderBps ${router.holderBps}, project distributor ${router.projectHolderDistributor}`);
+  const [max, delay] = await attempt("holder-routing", () => Promise.all([
+    client.readContract({ address: launch.router!, abi: claireFeeRouterAbi, functionName: "MAX_HOLDER_BPS", blockNumber }),
+    client.readContract({ address: launch.router!, abi: claireFeeRouterAbi, functionName: "PAYEE_DELAY", blockNumber }),
+  ])) ?? [];
+  if (max !== undefined) add("holder-routing", router.holderBps <= max && !same(router.projectHolderDistributor, zeroAddress), `holderBps ${router.holderBps}, project distributor ${router.projectHolderDistributor}`);
   const deployed = await attempt("router-deployed", () => scan(from, blockNumber, chunk, (fromBlock, toBlock) => client.getContractEvents({
     address: input.routerFactory, abi: claireRouterFactoryAbi, eventName: "RouterDeployed", args: { router: launch.router! }, fromBlock, toBlock, strict: true })));
+  const e = deployed?.[0]?.args;
   if (deployed) {
-    const e = deployed[0]?.args;
-    add("router-deployed", deployed.length === 1 && !!e && same(e.creator, router.creator) && same(e.payee, router.payee) && same(e.projectHolderDistributor, router.projectHolderDistributor)
-      && e.launchpad === (pons ? 0 : 1) && e.holderBps === router.holderBps,
-    deployed.length === 1 ? `Factory deployed the router for creator ${router.creator}, payee ${router.payee}` : `Expected one RouterDeployed event, found ${deployed.length}`);
+    add("router-deployed", deployed.length === 1 && !!e && same(e.creator, router.creator) && same(e.projectHolderDistributor, router.projectHolderDistributor) && e.launchpad === (pons ? 0 : 1),
+      deployed.length === 1 ? `Factory deployed the router for creator ${router.creator}` : `Expected one RouterDeployed event, found ${deployed.length}`);
   }
-  const launched = await attempt("launch-event", () => scan(from, blockNumber, chunk, (fromBlock, toBlock) => client.getContractEvents({
-    address: launch.router!, abi: claireFeeRouterAbi, eventName: "Launched", args: { token: input.token }, fromBlock, toBlock, strict: true })));
-  if (launched) {
-    facts.launchBlock = launched[0]?.blockNumber ?? null;
-    add("launch-event", launched.length === 1 && same(launched[0]!.args.quote, router.quote ?? zeroAddress), launched.length === 1 ? `Launched at block ${launched[0]!.blockNumber} with quote ${launched[0]!.args.quote}` : `Expected one Launched event, found ${launched.length}`);
+  if (e && deployed!.length === 1) {
+    facts.initial = { payee: e.payee, holderBps: e.holderBps };
+    const deployer = await attempt("router-address", () => client.readContract({ ...c, functionName: "routers" }));
+    const publisher = deployer && await attempt("router-address", () => client.readContract({ address: router.projectHolderDistributor, abi: claireDistributorAbi, functionName: "publisher", blockNumber }));
+    if (deployer && publisher) {
+      // The factory's CREATE2 key: its deployment parameters, with the publisher of the project holder distributor.
+      const key = keccak256(encodeAbiParameters([{ type: "uint8" }, { type: "address" }, { type: "address" }, { type: "address" }, { type: "uint16" }, { type: "bytes32" }], [pons ? 0 : 1, router.creator, e.payee, publisher, e.holderBps, e.salt]));
+      const predicted = await attempt("router-address", () => client.readContract({ address: deployer, abi: claireRouterDeployerAbi, functionName: "predict", blockNumber, args: [
+        key, { launchpad: pons ? 0 : 1, launchFactory: router.launchFactory, launchRouter: router.launchRouter, escrow: router.escrow, registry: router.registry, creator: router.creator, payee: e.payee,
+          projectHolderDistributor: router.projectHolderDistributor, claireHolderDistributor: router.claireHolderDistributor, treasury: router.treasury, feeToken: router.feeToken, tokenLock: router.tokenLock,
+          buybackVault: router.buybackVault, launchFee: router.launchFee, migrationFee: router.migrationFee, holderBps: e.holderBps }] }));
+      if (predicted) add("router-address", (!input.routerDeployer || same(input.routerDeployer, deployer)) && same(predicted, launch.router!), `The factory's router deployer ${deployer} predicts ${predicted} for the initial configuration`);
+    }
+    const history = await attempt("split-history", () => scan(from, blockNumber, chunk, (fromBlock, toBlock) => client.getContractEvents({
+      address: launch.router!, abi: claireFeeRouterAbi, fromBlock, toBlock, strict: true })));
+    if (history && delay !== undefined) {
+      let holderBps = e.holderBps, payee = e.payee, pending: { next: Address; at: bigint } | null = null;
+      const problems: string[] = [];
+      for (const ev of history) {
+        if (ev.eventName === "HolderShareRaised") {
+          const { oldBps, newBps } = ev.args;
+          if (oldBps !== holderBps || newBps <= oldBps || (max !== undefined && newBps > max)) problems.push(`holder share ${oldBps} to ${newBps} at block ${ev.blockNumber}`);
+          facts.holderShareRaises.push({ blockNumber: ev.blockNumber, oldBps, newBps });
+          holderBps = newBps;
+        } else if (ev.eventName === "PayeeChangeProposed") {
+          if (ev.args.effectiveAt !== await blockTime(client, ev.blockNumber) + delay) problems.push(`proposal timing at block ${ev.blockNumber}`);
+          pending = { next: ev.args.next, at: ev.args.effectiveAt };
+        } else if (ev.eventName === "PayeeChangeCanceled") {
+          if (!pending || !same(pending.next, ev.args.next)) problems.push(`cancel without that proposal at block ${ev.blockNumber}`);
+          pending = null;
+        } else if (ev.eventName === "PayeeChanged") {
+          const { oldPayee, newPayee } = ev.args;
+          if (!pending || !same(pending.next, newPayee) || !same(oldPayee, payee) || await blockTime(client, ev.blockNumber) < pending.at) problems.push(`payee change to ${newPayee} at block ${ev.blockNumber}`);
+          facts.payeeChanges.push({ blockNumber: ev.blockNumber, oldPayee, newPayee });
+          payee = newPayee;
+          pending = null;
+        }
+      }
+      if (holderBps !== router.holderBps) problems.push(`holderBps ${router.holderBps} is not the last raised share ${holderBps}`);
+      if (!same(payee, router.payee)) problems.push(`payee ${router.payee} is not the last applied payee ${payee}`);
+      if (!same(pending?.next ?? zeroAddress, router.pendingPayee) || (pending?.at ?? ZERO) !== router.payeeChangeAt) problems.push(`pending payee ${router.pendingPayee} does not match the last proposal`);
+      add("split-history", !problems.length, problems.length ? `The router's holder share and payee differ from what its events allow: ${problems.join("; ")}` : `Holder share ${e.holderBps} to ${router.holderBps} and payee ${e.payee} to ${router.payee} follow the router's ${facts.holderShareRaises.length} raise(s) and ${facts.payeeChanges.length} payee change(s)`);
+    }
   }
+  const events = <E extends "Launched" | "Adopted" | "MigrationFeePaid">(eventName: E, args?: { token: Address }) => scan(from, blockNumber, chunk, (fromBlock, toBlock) => client.getContractEvents({
+    address: launch.router!, abi: claireFeeRouterAbi, eventName, ...(args ? { args } : {}), fromBlock, toBlock, strict: true } as never));
+  const [launched, adopted] = await Promise.all([
+    attempt("launch-event", () => events("Launched", { token: input.token })) as Promise<{ blockNumber: bigint; args: { quote: Address } }[] | undefined>,
+    attempt("launch-event", () => events("Adopted", { token: input.token })) as Promise<{ blockNumber: bigint; args: { quote: Address } }[] | undefined>,
+  ]);
+  if (launched && adopted) {
+    // A token enters Claire one way: launched by its router (`Launched`) or an existing pons token adopted by it (`Adopted`), never both.
+    const path = launched.length === 1 && !adopted.length ? "launched" as const : adopted.length === 1 && !launched.length && pons ? "migrated" as const : null;
+    const entry = (path === "migrated" ? adopted : launched)[0];
+    facts.path = path;
+    facts.launchBlock = path ? entry!.blockNumber : null;
+    add("launch-event", !!path && same(entry!.args.quote, router.quote ?? zeroAddress),
+      path ? `${path === "launched" ? "Launched" : "Adopted"} at block ${entry!.blockNumber} with quote ${entry!.args.quote}` : `Expected one Launched or one Adopted event, found ${launched.length} and ${adopted.length}`);
+    if (path === "migrated") {
+      const fees = await attempt("migration-fee", () => events("MigrationFeePaid")) as { args: { payer: Address; feeToken: Address; amount: bigint; treasuryAmount: bigint; claireHolderAmount: bigint } }[] | undefined;
+      if (fees) {
+        const e = fees[0]?.args;
+        add("migration-fee", router.migrationFee === ZERO ? fees.length === 0 : fees.length === 1 && !!e && same(e.payer, router.creator) && same(e.feeToken, router.feeToken)
+          && e.amount === router.migrationFee && e.treasuryAmount + e.claireHolderAmount === e.amount,
+        router.migrationFee === ZERO ? "The factory charges no migration fee" : fees.length === 1 ? `Creator paid the ${router.migrationFee} migration fee once` : `Expected one MigrationFeePaid event, found ${fees.length}`);
+      }
+    }
+  }
+  const registered = await attempt("registration-event", () => scan(from, blockNumber, chunk, (fromBlock, toBlock) => client.getContractEvents({
+    address: input.routerFactory, abi: claireRouterFactoryAbi, eventName: "ClaireLaunchRegistered", args: { token: input.token }, fromBlock, toBlock, strict: true })));
+  if (registered) add("registration-event", registered.length === 1 && same(registered[0]!.args.router, launch.router!), registered.length === 1 ? `The router registered the token at block ${registered[0]!.blockNumber}` : `Expected one ClaireLaunchRegistered event, found ${registered.length}`);
   if (pons) add("pool-id", router.stockereumPoolId === zeroHash, "A pons router has no Stockereum pool id");
   else {
     const pools = await attempt("pool-id", () => scan(from, blockNumber, chunk, (fromBlock, toBlock) => client.getContractEvents({
@@ -124,8 +197,11 @@ export async function verifyLaunch(client: PublicClient, input: { token: Address
 // ------------------------------------------------------------------ router split
 
 /**
- * Recomputes the split of every `Distributed` event in the range (the creator share goes to the router's `payee`) and ties the revenue they charged to `totalRevenue`.
+ * Recomputes the split of every `Distributed` event in the range and ties the revenue they charged to `totalRevenue`. Each distribution uses the holder share in effect when it happened:
+ * the router's `HolderShareRaised` and `PayeeChanged` events are replayed in log order, ending at the router's current `holderBps` and `payee` (`facts.holderShareRaises`, `facts.payeeChanges`).
+ * The creator share went to the payee in effect, which is recorded per distribution in `facts.payees`.
  * Revenue is only ever charged in the quote asset and, on pons, the launch token (buyback vests); both are counted and any other asset charged revenue fails.
+ * `facts.historical` sums the `HistoricalFeesPaid` amounts of an adopted token (fees and vest earned before adoption, paid to the creator uncharged); they are not revenue and are excluded from `revenue` and `totalRevenue`.
  */
 export async function verifyRouterSplit(client: PublicClient, input: { router: Address } & ReadAt & ScanOptions) {
   const { add, attempt, finish } = collector();
@@ -140,25 +216,58 @@ export async function verifyRouterSplit(client: PublicClient, input: { router: A
     const bound = !same(launched, zeroAddress);
     return { holderBps: BigInt(holderBps), bps: BigInt(bps), claireBps: BigInt(claireBps), payee, quote: bound ? await client.readContract({ ...c, functionName: "quote" }) : null, launchToken: bound && launchpad === 0 ? launched : null };
   });
-  const events = config && await attempt("events", () => scan(from, blockNumber, chunk, (fromBlock, toBlock) => client.getContractEvents({ ...c, eventName: "Distributed", fromBlock, toBlock, strict: true })));
-  const facts = { router: input.router, blockNumber, distributions: 0, payee: config?.payee ?? null, revenue: new Map<Address, bigint>(), totalRevenue: new Map<Address, bigint>() };
-  if (!config || !events) return finish(facts);
+  const log = config && await attempt("events", () => scan(from, blockNumber, chunk, (fromBlock, toBlock) => client.getContractEvents({ ...c, fromBlock, toBlock, strict: true })));
+  const facts = { router: input.router, blockNumber, distributions: 0, payee: config?.payee ?? null, payees: [] as Address[], holderShareRaises: [] as { blockNumber: bigint; oldBps: number; newBps: number }[], payeeChanges: [] as { blockNumber: bigint; oldPayee: Address; newPayee: Address }[], revenue: new Map<Address, bigint>(), historical: new Map<Address, bigint>(), totalRevenue: new Map<Address, bigint>() };
+  if (!config || !log) return finish(facts);
+  const events = log.filter((ev) => ev.eventName === "Distributed") as Extract<(typeof log)[number], { eventName: "Distributed" }>[];
   facts.distributions = events.length;
   const problems: string[] = [];
-  for (const { args: e, blockNumber: at } of events) {
-    const claire = e.revenue * config.claireBps / config.bps;
-    const holders = e.revenue * config.holderBps / config.bps;
-    const want = [e.received - claire - holders, holders, claire / BigInt(2), claire - claire / BigInt(2)];
-    const onChain = await client.readContract({ ...c, functionName: "split", args: [e.revenue] });
-    const got = [e.creatorAmount, e.projectHolderAmount, e.claireHolderAmount, e.treasuryAmount];
-    if (e.revenue > e.received || want.some((value, i) => value !== got[i]) || onChain[1] !== holders || onChain[2] !== claire / BigInt(2) || onChain[3] !== claire - claire / BigInt(2) || onChain[0] + (e.received - e.revenue) !== e.creatorAmount) problems.push(`block ${at}`);
-    facts.revenue.set(e.asset, (facts.revenue.get(e.asset) ?? ZERO) + e.revenue);
+  // The state before the range is the `old` value of its first change, or the current value when nothing changed; every later change must continue from the previous one and end at the current value.
+  const raises = log.filter((ev) => ev.eventName === "HolderShareRaised");
+  const changes = log.filter((ev) => ev.eventName === "PayeeChanged");
+  let holderBps = BigInt(raises[0]?.eventName === "HolderShareRaised" ? raises[0].args.oldBps : config.holderBps), payee = changes[0]?.eventName === "PayeeChanged" ? changes[0].args.oldPayee : config.payee;
+  const chain: string[] = [];
+  for (const ev of log) {
+    if (ev.eventName === "HolderShareRaised") {
+      if (BigInt(ev.args.oldBps) !== holderBps || ev.args.newBps <= ev.args.oldBps) chain.push(`holder share at block ${ev.blockNumber}`);
+      facts.holderShareRaises.push({ blockNumber: ev.blockNumber, oldBps: ev.args.oldBps, newBps: ev.args.newBps });
+      holderBps = BigInt(ev.args.newBps);
+    } else if (ev.eventName === "PayeeChanged") {
+      if (!same(ev.args.oldPayee, payee)) chain.push(`payee at block ${ev.blockNumber}`);
+      facts.payeeChanges.push({ blockNumber: ev.blockNumber, oldPayee: ev.args.oldPayee, newPayee: ev.args.newPayee });
+      payee = ev.args.newPayee;
+    } else if (ev.eventName === "Distributed") {
+      const e = ev.args, at = ev.blockNumber;
+      facts.payees.push(payee);
+      const claire = e.revenue * config.claireBps / config.bps;
+      const holders = e.revenue * holderBps / config.bps;
+      const want = [e.received - claire - holders, holders, claire / BigInt(2), claire - claire / BigInt(2)];
+      const got = [e.creatorAmount, e.projectHolderAmount, e.claireHolderAmount, e.treasuryAmount];
+      let bad = e.revenue > e.received || want.some((value, i) => value !== got[i]);
+      // The router's own split() describes its current share, so it can only be compared against distributions made under it.
+      if (holderBps === config.holderBps) {
+        const onChain = await client.readContract({ ...c, functionName: "split", args: [e.revenue] });
+        bad ||= onChain[1] !== holders || onChain[2] !== claire / BigInt(2) || onChain[3] !== claire - claire / BigInt(2) || onChain[0] + (e.received - e.revenue) !== e.creatorAmount;
+      }
+      if (bad) problems.push(`block ${at}`);
+      facts.revenue.set(e.asset, (facts.revenue.get(e.asset) ?? ZERO) + e.revenue);
+    }
   }
+  if (holderBps !== config.holderBps) chain.push(`holder share ${config.holderBps} is not the last raised share ${holderBps}`);
+  if (!same(payee, config.payee)) chain.push(`payee ${config.payee} is not the last applied payee ${payee}`);
+  add("split-history", !chain.length, chain.length ? `The router's holder share or payee changes do not chain: ${chain.join("; ")}` : `${facts.holderShareRaises.length} holder share raise(s) and ${facts.payeeChanges.length} payee change(s) lead to the current values`);
   add("split", !problems.length, problems.length ? `${problems.length} distribution(s) differ from the router's split: ${problems.join(", ")}` : `${events.length} distribution(s) match the router's split`);
   if (config.quote) facts.revenue.set(config.quote, facts.revenue.get(config.quote) ?? ZERO);
   if (config.launchToken) facts.revenue.set(config.launchToken, facts.revenue.get(config.launchToken) ?? ZERO);
   const stray = [...facts.revenue].filter(([asset, sum]) => sum > ZERO && !same(asset, config.quote ?? zeroAddress) && !same(asset, config.launchToken ?? zeroAddress)).map(([asset]) => asset);
   add("revenue-assets", !stray.length, stray.length ? `Revenue was charged in unexpected asset(s): ${stray.join(", ")}` : "Revenue was charged only in the quote asset and the pons launch token");
+  // Pre-adoption fees and vest paid to the creator (`HistoricalFeesPaid`) are not revenue: they were never charged, are not in `Distributed` and must not be in `totalRevenue`.
+  const paid = await attempt("historical", () => scan(from, blockNumber, chunk, (fromBlock, toBlock) => client.getContractEvents({ ...c, eventName: "HistoricalFeesPaid", fromBlock, toBlock, strict: true })));
+  if (paid) {
+    for (const { args: e } of paid) facts.historical.set(e.asset, (facts.historical.get(e.asset) ?? ZERO) + e.amount);
+    const other = [...facts.historical.keys()].filter((asset) => !same(asset, config.quote ?? zeroAddress) && !same(asset, config.launchToken ?? zeroAddress));
+    add("historical", !other.length, other.length ? `Historical fees were paid in unexpected asset(s): ${other.join(", ")}` : `${paid.length} historical payment(s) to the creator, not counted as revenue`);
+  }
   // A scan from the start must account for all revenue; a partial scan can only be a lower bound.
   const complete = from === ZERO;
   const mismatched: string[] = [];
@@ -450,9 +559,9 @@ export async function verifySplit(client: PublicClient, input: { split: Address;
 
 export type RoundLevel = "manifest" | "balances" | "complete";
 type Hole = string | null;
-/** The canonical round manifest, version 2 (cumulative): one per published root, listing every account with a cumulative entitlement. */
+/** The canonical round manifest, version 1 (cumulative): one per published root, listing every account with a cumulative entitlement. */
 export type RoundManifest = {
-  kind: "claire-round"; version: 2; purpose: "project-holders" | "claire-holders" | "airdrop" | "referrals"; chainId: number; distributor: Address; asset: Address;
+  kind: "claire-round"; version: 1; purpose: "project-holders" | "claire-holders" | "airdrop" | "referrals"; chainId: number; distributor: Address; asset: Address;
   /** Evidence of the previous root for this asset on this distributor; null for the first. */
   previousEvidence: Hex | null;
   /** Raw amount this round adds; `cumulativeTotal` is what the distributor holds in promises after it. */
@@ -467,11 +576,11 @@ const uint = (value: unknown): value is string => typeof value === "string" && /
 const addr = (value: unknown): value is Address => typeof value === "string" && isAddress(value, { strict: false }) && value === value.toLowerCase();
 const MAX_UINT256 = BigInt(2) ** BigInt(256) - BigInt(1);
 
-/** Throws with the first structural problem; the shape is the canonical round manifest, version 2. */
+/** Throws with the first structural problem; the shape is the canonical round manifest, version 1. */
 export function parseRoundManifest(text: string): RoundManifest {
   const m = JSON.parse(text) as Record<string, any>;
   const bad = (what: string): never => { throw new Error(`Invalid manifest: ${what}`); };
-  if (m.kind !== "claire-round" || m.version !== 2) bad("kind or version");
+  if (m.kind !== "claire-round" || m.version !== 1) bad("kind or version");
   if (!["project-holders", "claire-holders", "airdrop", "referrals"].includes(m.purpose)) bad("purpose");
   if (!Number.isInteger(m.chainId) || !addr(m.distributor) || !addr(m.asset) || !uint(m.total) || !uint(m.cumulativeTotal)) bad("chainId, distributor, asset, total or cumulativeTotal");
   if (!(m.previousEvidence === null || (typeof m.previousEvidence === "string" && /^0x[0-9a-f]{64}$/.test(m.previousEvidence)))) bad("previousEvidence");

@@ -9,11 +9,11 @@ export async function pinBlock(client: PublicClient, blockNumber?: bigint) {
   return { blockNumber: block.number, timestamp: block.timestamp };
 }
 
-/** A fee router's immutable configuration plus its quote asset and cumulative revenue. `quote`, `totalRevenue` and `revenueToken` are null before the launch (`revenueToken` also on Stockereum, which has no launch-token revenue). */
+/** A fee router's configuration plus its quote asset and cumulative revenue. `payee` and `holderBps` are the values now in effect: the creator can raise the holder share at any time (never lower it) and change the payee with 7 days' notice; `pendingPayee` and `payeeChangeAt` (unix seconds) describe a proposed change (zero address and 0 when none). `migrationFee` is the stable fee charged once if a pons token is adopted; `historicalVest` is the launch-token vest inherited at adoption and not yet paid to the creator (0 for launched tokens; it is not revenue). `quote`, `totalRevenue` and `revenueToken` are null before the launch or adoption (`revenueToken` also on Stockereum, which has no launch-token revenue). */
 export async function readRouter(client: PublicClient, router: Address, at: ReadAt = {}) {
   const { blockNumber } = await pinBlock(client, at.blockNumber);
   const c = { address: router, abi: claireFeeRouterAbi, blockNumber } as const;
-  const [launchpad, launchFactory, launchRouter, escrow, registry, creator, payee, projectHolderDistributor, claireHolderDistributor, treasury, feeToken, tokenLock, buybackVault, launchFee, holderBps, launchedToken, curve, stockereumPoolId] = await Promise.all([
+  const [launchpad, launchFactory, launchRouter, escrow, registry, creator, payee, projectHolderDistributor, claireHolderDistributor, treasury, feeToken, tokenLock, buybackVault, launchFee, migrationFee, historicalVest, holderBps, launchedToken, curve, stockereumPoolId, pendingPayee, payeeChangeAt] = await Promise.all([
     client.readContract({ ...c, functionName: "launchpad" }),
     client.readContract({ ...c, functionName: "launchFactory" }),
     client.readContract({ ...c, functionName: "launchRouter" }),
@@ -28,10 +28,14 @@ export async function readRouter(client: PublicClient, router: Address, at: Read
     client.readContract({ ...c, functionName: "tokenLock" }),
     client.readContract({ ...c, functionName: "buybackVault" }),
     client.readContract({ ...c, functionName: "launchFee" }),
+    client.readContract({ ...c, functionName: "migrationFee" }),
+    client.readContract({ ...c, functionName: "historicalVest" }),
     client.readContract({ ...c, functionName: "holderBps" }),
     client.readContract({ ...c, functionName: "launchedToken" }),
     client.readContract({ ...c, functionName: "curve" }),
     client.readContract({ ...c, functionName: "stockereumPoolId" }),
+    client.readContract({ ...c, functionName: "pendingPayee" }),
+    client.readContract({ ...c, functionName: "payeeChangeAt" }),
   ]);
   const pons = launchpad === 0;
   const quote = launchedToken === zeroAddress ? null : await client.readContract({ ...c, functionName: "quote" });
@@ -41,7 +45,7 @@ export async function readRouter(client: PublicClient, router: Address, at: Read
   ]);
   return {
     router, blockNumber, launchpad: pons ? "pons" as const : "stockereum" as const, launchFactory, launchRouter, escrow, registry, creator, payee,
-    projectHolderDistributor, claireHolderDistributor, treasury, feeToken, tokenLock, buybackVault, launchFee, holderBps, launchedToken, curve, stockereumPoolId, quote, totalRevenue, revenueToken,
+    projectHolderDistributor, claireHolderDistributor, treasury, feeToken, tokenLock, buybackVault, launchFee, migrationFee, historicalVest, holderBps, pendingPayee, payeeChangeAt: BigInt(payeeChangeAt), launchedToken, curve, stockereumPoolId, quote, totalRevenue, revenueToken,
   };
 }
 
@@ -160,7 +164,7 @@ export async function readSplit(client: PublicClient, input: { split: Address; a
   return { split: input.split, blockNumber, payees, shares, assets };
 }
 
-/** `ClaireProofView.proof(token)`: Claire launch facts, router revenue per quote and launch token, locked amounts in the three lock contracts and the pons permanently locked supply, in one call. */
+/** `ClaireProofView.proof(token)`: Claire launch facts, router revenue per quote and launch token, locked amounts in the three lock contracts and the pons permanently locked supply, in one call. `payee` and `holderBps` are current values; `pendingPayee` and `payeeChangeAt` show a payee change the creator has announced (zero address and 0 when none). */
 export async function readProof(client: PublicClient, input: { proofView: Address; token: Address } & ReadAt) {
   const { blockNumber } = await pinBlock(client, input.blockNumber);
   const proof = await client.readContract({ address: input.proofView, abi: claireProofViewAbi, functionName: "proof", args: [input.token], blockNumber });

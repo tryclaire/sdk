@@ -1,4 +1,4 @@
-// Deploys the real Claire v3 contracts and the protocol's launchpad mocks (artifacts.json, synced from the protocol build by
+// Deploys the real Claire contracts and the protocol's launchpad mocks (artifacts.json, synced from the protocol build by
 // `npm run sync-abis`) to local anvil chains, then runs every verifier against them, including tampered and forged
 // inputs. anvil must be on PATH.
 import assert from "node:assert/strict";
@@ -8,7 +8,7 @@ import { createServer } from "node:net";
 import { after, before, test } from "node:test";
 import { createPublicClient, createTestClient, createWalletClient, encodeAbiParameters, getAddress, getContractAddress, http, keccak256, toHex, zeroAddress, zeroHash } from "viem";
 import {
-  claireDistributorAbi, claireDistributorFactoryAbi, claireFeeRouterAbi, clairePriceLockAbi, claireProofViewAbi, claireRevenueLockAbi, claireRouterFactoryAbi, claireSplitAbi, claireTokenLockAbi, claireVaultFactoryAbi, claireVestingVaultAbi,
+  claireDistributorAbi, claireDistributorFactoryAbi, claireFeeRouterAbi, clairePriceLockAbi, claireProofViewAbi, claireRevenueLockAbi, claireRouterDeployerAbi, claireRouterFactoryAbi, claireSplitAbi, claireTokenLockAbi, claireVaultFactoryAbi, claireVestingVaultAbi,
   manifestEvidence, merkleProof, merkleRoot, readLaunch, readLock, readPriceLock, readProof, readRevenueLock, readRound, readRouter, readSplit, readVestingVault, roundLeafHash,
   verifyLaunch, verifyLock, verifyPriceLock, verifyRevenueLock, verifyRound, verifyRouterSplit, verifySplit, verifyVestingVault,
 } from "../../dist/protocol/index.js";
@@ -72,12 +72,13 @@ before(async () => {
   const feeToken = await a.deploy(mock("DecimalToken"), [6]);
   const pair = await a.deploy(mock("DecimalToken"), [6]);
   const distributorFactory = await a.deploy(real("ClaireDistributorFactory", claireDistributorFactoryAbi));
+  const routerDeployer = await a.deploy(real("ClaireRouterDeployer", claireRouterDeployerAbi));
   const vaultFactory = await a.deploy(real("ClaireVaultFactory", claireVaultFactoryAbi));
   const claireHolders = await a.deploy(real("ClaireDistributor", claireDistributorAbi), [clairePublisher, keccak256(toHex("claire-holders")), 0]);
   const nonce = await a.pub.getTransactionCount({ address: deployer });
   const tokenLock = getContractAddress({ from: deployer, nonce: nonce + 1 });
   const launchpads = { ponsFactory, ponsEscrow: escrow, ponsLaunchRouter: launchRouter, ponsBuybackVault: buybackVault, stockereumFactory: stockFactory, stockereumEscrow: stockEscrow };
-  const factoryArgs = [claireHolders, treasury, launchpads, feeToken, 10_000_000n, tokenLock, distributorFactory];
+  const factoryArgs = [claireHolders, treasury, launchpads, feeToken, 10_000_000n, 25_000_000n, tokenLock, distributorFactory, routerDeployer];
   const factoryArtifact = real("ClaireRouterFactory", claireRouterFactoryAbi);
   const routerFactory = await a.deploy(factoryArtifact, factoryArgs);
   assert.equal(await a.deploy(real("ClaireTokenLock", claireTokenLockAbi), [routerFactory, feeToken, 25_000_000n, treasury, claireHolders]), tokenLock);
@@ -85,7 +86,7 @@ before(async () => {
   const poolManager = await a.deploy(mock("MockPoolManager"));
   const priceLock = await a.deploy(real("ClairePriceLock", clairePriceLockAbi), [routerFactory, poolManager, poolManager]);
   const proofView = await a.deploy(real("ClaireProofView", claireProofViewAbi), [routerFactory, tokenLock, revenueLock, priceLock, locker]);
-  Object.assign(world, { escrow, ponsFactory, buybackVault, feeToken, pair, claireHolders, vaultFactory, routerFactory, tokenLock, revenueLock, priceLock, proofView, poolManager, factoryArtifact, factoryArgs });
+  Object.assign(world, { escrow, ponsFactory, buybackVault, feeToken, pair, claireHolders, vaultFactory, routerFactory, routerDeployer, tokenLock, revenueLock, priceLock, proofView, poolManager, factoryArtifact, factoryArgs });
 
   await a.send(feeToken, tokenAbi(), "mint", [creator, 1_000_000_000n]);
   await a.send(pair, tokenAbi(), "mint", [creator, 1_000_000_000_000n]);
@@ -212,7 +213,7 @@ test("buyback toggles, launch-token revenue splits with Claire's 10% and the pro
   assert.equal(both.facts.totalRevenue.get(world.pair), 70_000n);
 
   // The router's totalRevenue for the launch token cannot be inflated past what its events charged.
-  const slot = slotOf(bb.token, 9);
+  const slot = slotOf(bb.token, 12);
   await a.admin.setStorageAt({ address: bb.router, index: slot, value: word(amount + 1n) });
   assert.ok(failed(await verifyRouterSplit(a.pub, { router: bb.router })).includes("total-revenue"));
   await a.admin.setStorageAt({ address: bb.router, index: slot, value: word(amount) });
@@ -555,7 +556,7 @@ async function publish(snapshot, { asset = world.pair, drop = [], lie = false, i
   const total = [...amounts.values()].reduce((x, y) => x + y, 0n);
   const previousTotal = [...prev.cum.values()].reduce((x, y) => x + y, 0n);
   const text = JSON.stringify({
-    kind: "claire-round", version: 2, purpose, chainId: a.chainId, distributor: lower(claireHolders), asset: lower(asset),
+    kind: "claire-round", version: 1, purpose, chainId: a.chainId, distributor: lower(claireHolders), asset: lower(asset),
     previousEvidence: wrongPrevious ? keccak256(toHex("not the previous root")) : prev.evidence, total: String(total), cumulativeTotal: String(previousTotal + total),
     snapshot: snapshot ? { chainId: snapshot.chain.chainId, block: String(snapshot.block), token: lower(snapshot.address) } : { chainId: a.chainId, block: "1", token: null },
     rule, leaves,
@@ -702,4 +703,177 @@ test("verifyRound: manifests are fetched by evidence hash, and referral rounds c
   const forged = JSON.parse(two.text);
   forged.rule.rewards.push([lower(holderB), "9", ["6"]]);
   assert.ok(failed(await verify(two, { manifest: JSON.stringify(forged) })).includes("rewards"));
+});
+
+// ------------------------------------------------------------------ adoption (path 3)
+
+test("adopt: an existing pons token moves to a router; historical fees and vest are not revenue; forged adoptions fail", async () => {
+  const { a, creator, publisher, deployer, keeper, pair, feeToken, routerFactory, ponsFactory, buybackVault, vaultFactory, plain } = world;
+  const [factoryMock, curveMock, vaultMock] = [mock("MockPonsFactory").abi, mock("MockPonsCurve").abi, mock("MockPonsBuybackVault").abi];
+  const balance = (token, address) => a.pub.readContract({ address: token, abi: tokenAbi(), functionName: "balanceOf", args: [address] });
+  const mint = (token, to, amount) => a.send(token, tokenAbi(), "mint", [to, amount]);
+  /** Launches a token straight on pons (the creator is its fee recipient) with 1_000_000 fees on its curve and a 300-token buyback vest the creator already earned, then moves it to a new router of `factory` and adopts it. */
+  async function adoptThrough(factory, name, fee) {
+    const abi = claireRouterFactoryAbi;
+    const [router] = await a.pub.readContract({ address: factory, abi, functionName: "predict", args: [0, creator, creator, publisher, 0, salt(name)] });
+    await a.send(factory, abi, "deploy", [0, creator, creator, publisher, 0, salt(name)]);
+    const params = {
+      name: "Old", symbol: "OLD", logo: "", description: "", socials: { twitter: "", telegram: "", discord: "", website: "", farcaster: "" },
+      creatorFeeRecipient: creator, creatorTaxBps: 300, buybackEnabled: true, expectedEconomics: zeroHash, salt: salt(name),
+    };
+    const launchArgs = { address: ponsFactory, abi: factoryMock, functionName: "launchToken", args: [params, 0n, pair, []], account: creator, value: 500_000_000_000_000n };
+    const { result: [token, curve] } = await a.pub.simulateContract(launchArgs);
+    await a.send(ponsFactory, factoryMock, "launchToken", launchArgs.args, { from: creator, value: launchArgs.value });
+    await mint(pair, curve, 1_000_000n);
+    await a.send(curve, curveMock, "accrueToken", [1_000_000n, 0n]);
+    await mint(token, deployer, 300n * E18);
+    await a.send(token, tokenAbi(), "approve", [buybackVault, 300n * E18]);
+    await a.send(buybackVault, vaultMock, "deposit", [token, creator, 300n * E18]);
+    await a.send(ponsFactory, factoryMock, "transferCreatorFeeRecipient", [token, router], { from: creator });
+    await a.send(buybackVault, vaultMock, "deposit", [token, router, 0n]); // the vault follows the recipient
+    await a.send(feeToken, tokenAbi(), "approve", [router, fee], { from: creator });
+    const [pairBefore, feeBefore] = [await balance(pair, creator), await balance(feeToken, creator)];
+    const receipt = await a.send(router, claireFeeRouterAbi, "adopt", [token], { from: creator });
+    return { router, token, curve, receipt, pairPaid: (await balance(pair, creator)) - pairBefore, feePaid: feeBefore - (await balance(feeToken, creator)) };
+  }
+
+  const old = await adoptThrough(routerFactory, "old", 25_000_000n);
+  assert.equal(old.feePaid, 25_000_000n, "the creator paid the USD 25 migration fee");
+  assert.equal(old.pairPaid, 700_000n, "fees earned before the move went to the creator");
+  assert.equal(await balance(pair, old.router), 0n);
+
+  const result = await verifyLaunch(a.pub, { token: old.token, routerFactory, vaultFactory, chunk: 3n });
+  passes(result, "adopted token");
+  assert.equal(result.facts.path, "migrated");
+  assert.equal(result.facts.launchBlock, old.receipt.blockNumber);
+  assert.equal(result.facts.launch.migrationFee, 25_000_000n);
+  assert.equal(result.facts.launch.historicalVest, 300n * E18);
+  assert.equal(result.facts.launch.quote.toLowerCase(), pair.toLowerCase());
+  assert.equal(result.checks.find((check) => check.id === "migration-fee").ok, true);
+  assert.equal((await verifyLaunch(a.pub, { token: plain.token, routerFactory })).facts.path, "launched");
+  assert.equal((await readLaunch(a.pub, { token: old.token, routerFactory })).claireLaunched, true);
+
+  // Right after adoption nothing is revenue; the earlier fees are historical.
+  let split = await verifyRouterSplit(a.pub, { router: old.router });
+  passes(split, "after adoption");
+  assert.equal(split.facts.distributions, 0);
+  assert.equal(split.facts.historical.get(pair), 700_000n);
+  assert.equal(split.facts.revenue.get(pair), 0n);
+  assert.equal(split.facts.totalRevenue.get(pair), 0n);
+
+  // Fees earned after adoption are revenue (Claire's 10%); the vest the creator already earned is paid to the creator uncharged, only later buybacks are revenue.
+  await accrueAndHarvest(old.router, 1_000_000n, 0n);
+  await mint(old.token, deployer, 100n * E18);
+  await a.send(old.token, tokenAbi(), "approve", [buybackVault, 100n * E18]);
+  await a.send(buybackVault, vaultMock, "deposit", [old.token, old.router, 100n * E18]);
+  assert.equal((await readRouter(a.pub, old.router)).historicalVest, 300n * E18);
+  await a.send(old.router, claireFeeRouterAbi, "harvest", [old.token], { from: keeper });
+  assert.equal((await readRouter(a.pub, old.router)).historicalVest, 0n);
+  assert.equal(await balance(old.token, creator), 300n * E18 + 90n * E18, "the old vest plus the creator's share of the new buyback");
+  split = await verifyRouterSplit(a.pub, { router: old.router, chunk: 4n });
+  passes(split, "after revenue");
+  assert.equal(split.facts.distributions, 2);
+  assert.equal(split.facts.historical.get(pair), 700_000n);
+  assert.equal(split.facts.historical.get(old.token), 300n * E18);
+  assert.equal(split.facts.revenue.get(pair), 700_000n);
+  assert.equal(split.facts.revenue.get(old.token), 100n * E18);
+  assert.equal(split.facts.totalRevenue.get(old.token), 100n * E18);
+  passes(await verifyLaunch(a.pub, { token: old.token, routerFactory }), "adopted token with revenue");
+
+  // A router that counted the historical vest as revenue is caught.
+  const slot = slotOf(old.token, 12);
+  await a.admin.setStorageAt({ address: old.router, index: slot, value: word(400n * E18) });
+  assert.ok(failed(await verifyRouterSplit(a.pub, { router: old.router })).includes("total-revenue"));
+  await a.admin.setStorageAt({ address: old.router, index: slot, value: word(100n * E18) });
+  passes(await verifyRouterSplit(a.pub, { router: old.router }), "restored");
+
+  // Forged: an attacker's factory (here with no migration fee) adopts a token. The real factory never registered it; against its own factory it is self-consistent but reports no fee.
+  const attackerFactory = await a.deploy(world.factoryArtifact, world.factoryArgs.map((value, i) => i === 5 ? 0n : value));
+  const forged = await adoptThrough(attackerFactory, "forged", 0n);
+  assert.ok(failed(await verifyLaunch(a.pub, { token: forged.token, routerFactory })).includes("registered"));
+  const own = await verifyLaunch(a.pub, { token: forged.token, routerFactory: attackerFactory });
+  passes(own, "attacker factory is self-consistent");
+  assert.equal(own.facts.launch.migrationFee, 0n);
+  assert.notEqual(own.facts.launch.migrationFee, result.facts.launch.migrationFee, "the real router's migration fee differs from the forged one's");
+  // An out-of-range scan that misses the Adopted event, and a factory that never registered the token.
+  assert.ok(failed(await verifyLaunch(a.pub, { token: old.token, routerFactory, fromBlock: old.receipt.blockNumber + 1n })).includes("launch-event"));
+  assert.ok(failed(await verifyLaunch(a.pub, { token: old.token, routerFactory: attackerFactory })).includes("registered"), "the real adopted token is unknown to the attacker's factory");
+});
+
+// ------------------------------------------------------------------ changeable split
+
+test("changeable split: raise the holder share, propose, cancel and apply a payee, and forged changes fail", async () => {
+  const { a, creator, keeper, holderA, holderC, routerFactory, routerDeployer, proofView, vaultFactory, tokenLock, pair } = world;
+  const call = (router, functionName, args = [], from = creator) => a.send(router, claireFeeRouterAbi, functionName, args, { from });
+  const reverts = (router, functionName, args, from) => assert.rejects(a.pub.simulateContract({ address: router, abi: claireFeeRouterAbi, functionName, args, account: from }), functionName);
+  const { router, token } = await launch(routerFactory, 2000, salt("split"), noLock);
+  const verify = (extra = {}) => verifyLaunch(a.pub, { token, routerFactory, routerDeployer, vaultFactory, tokenLock, ...extra });
+
+  // A distribution under the 20% share, a raise (instant, creator only, never lower), then one under 40%.
+  await accrueAndHarvest(router, 1_000_000n, 0n);
+  await reverts(router, "raiseHolderShare", [4000], keeper);
+  await reverts(router, "raiseHolderShare", [2000], creator);
+  await reverts(router, "raiseHolderShare", [1000], creator);
+  await call(router, "raiseHolderShare", [4000]);
+  let result = await verify();
+  passes(result, "after a raise");
+  assert.deepEqual(result.facts.initial, { payee: getAddress(creator), holderBps: 2000 });
+  assert.deepEqual(result.facts.holderShareRaises.map(({ oldBps, newBps }) => [oldBps, newBps]), [[2000, 4000]]);
+  assert.equal(result.facts.launch.holderBps, 4000);
+  assert.equal((await readProof(a.pub, { proofView, token })).holderBps, 4000);
+  await accrueAndHarvest(router, 1_000_000n, 0n);
+  let split = await verifyRouterSplit(a.pub, { router, chunk: 5n });
+  passes(split, "each distribution at the share in effect");
+  assert.equal(split.facts.distributions, 2);
+  assert.deepEqual(split.facts.holderShareRaises.map(({ newBps }) => newBps), [4000]);
+  passes(await verifyRouterSplit(a.pub, { router, fromBlock: split.facts.holderShareRaises[0].blockNumber + 1n }), "range after the raise");
+  assert.ok(failed(await verify({ routerDeployer: creator })).includes("router-address"), "a deployer the factory does not use");
+
+  // Propose, early apply fails, cancel, propose again and apply after the notice.
+  await reverts(router, "proposePayee", [holderA], keeper);
+  await reverts(router, "proposePayee", [creator], creator);
+  await call(router, "proposePayee", [holderA]);
+  const proposedAt = BigInt(await a.now());
+  let facts = await readRouter(a.pub, router);
+  assert.equal(facts.pendingPayee, getAddress(holderA));
+  assert.equal(facts.payeeChangeAt, proposedAt + 7n * 86_400n);
+  const proof = await readProof(a.pub, { proofView, token });
+  assert.deepEqual([proof.pendingPayee, proof.payeeChangeAt, proof.payee], [getAddress(holderA), facts.payeeChangeAt, getAddress(creator)]);
+  passes(await verify(), "a proposal is pending");
+  await a.warp(7 * 86_400 - 100);
+  await reverts(router, "applyPayee", [], keeper);
+  await call(router, "cancelPayee");
+  facts = await readRouter(a.pub, router);
+  assert.deepEqual([facts.pendingPayee, facts.payeeChangeAt], [zeroAddress, 0n]);
+  passes(await verify(), "canceled");
+  await call(router, "proposePayee", [holderA]);
+  await a.warp(7 * 86_400 + 1);
+  await call(router, "applyPayee", [], keeper);
+  result = await verify();
+  passes(result, "payee changed");
+  assert.equal(result.facts.launch.payee, getAddress(holderA));
+  assert.equal(result.facts.payeeKind, "other");
+  assert.deepEqual(result.facts.payeeChanges.map(({ oldPayee, newPayee }) => [oldPayee, newPayee]), [[getAddress(creator), getAddress(holderA)]]);
+  assert.equal(result.facts.holderShareRaises.length, 1, "the earlier raise is still reported");
+  const before = await a.pub.readContract({ address: pair, abi: tokenAbi(), functionName: "balanceOf", args: [holderA] });
+  await accrueAndHarvest(router, 1_000_000n, 0n);
+  assert.ok(await a.pub.readContract({ address: pair, abi: tokenAbi(), functionName: "balanceOf", args: [holderA] }) > before, "the new payee is paid");
+  split = await verifyRouterSplit(a.pub, { router });
+  passes(split, "after the payee change");
+  assert.deepEqual(split.facts.payees, [getAddress(creator), getAddress(creator), getAddress(holderA)]);
+  assert.equal(split.facts.payee, getAddress(holderA));
+
+  // Forged: the payee or holder share differs without an event, or a pending payee exists without a proposal. Slot 1 packs the payee (low 20 bytes) and holderBps; slot 2 the pending payee and payeeChangeAt.
+  const forge = async (index, value, what, splitToo) => {
+    const original = await a.pub.getStorageAt({ address: router, slot: index });
+    await a.admin.setStorageAt({ address: router, index, value });
+    assert.ok(failed(await verify()).includes("split-history"), what);
+    if (splitToo) assert.ok(failed(await verifyRouterSplit(a.pub, { router })).includes("split-history"), what);
+    await a.admin.setStorageAt({ address: router, index, value: original });
+    passes(await verify(), "restored");
+    passes(await verifyRouterSplit(a.pub, { router }), "restored");
+  };
+  await forge("0x1", word((4000n << 160n) | BigInt(holderC)), "payee changed without PayeeChanged", true);
+  await forge("0x1", word((5000n << 160n) | BigInt(holderA)), "holder share changed without HolderShareRaised", true);
+  await forge("0x2", word((1n << 160n) | BigInt(holderC)), "a pending payee without PayeeChangeProposed", false);
 });
