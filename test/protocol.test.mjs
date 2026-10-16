@@ -1,15 +1,16 @@
 import assert from "node:assert/strict";
 import test from "node:test";
 import { concat, keccak256 } from "viem";
-import { claireFeeRouterAbi, claireRevenueLockAbi, deployments, manifestEvidence, merkleProof, merkleRoot, parseRoundManifest, roundLeafHash } from "../dist/protocol/index.js";
+import { claireDistributorAbi, claireFeeRouterAbi, clairePriceLockAbi, claireProofViewAbi, claireRevenueLockAbi, claireSplitAbi, claireVaultFactoryAbi, claireVestingVaultAbi, deployments, manifestEvidence, merkleProof, merkleRoot, parseRoundManifest, roundLeafHash } from "../dist/protocol/index.js";
 
 const distributor = "0x00000000000000000000000000000000000000d1";
-const leaves = [1, 2, 3, 4, 5].map((i) => ({ index: i - 1, account: `0x${i.toString(16).padStart(40, "0")}`, amount: String(i * 1000) }));
-const hashes = leaves.map((leaf) => roundLeafHash(31337, distributor, 7n, leaf));
+const asset = "0x00000000000000000000000000000000000000a5";
+const leaves = [1, 2, 3, 4, 5].map((i) => ({ account: `0x${i.toString(16).padStart(40, "0")}`, cumulative: String(i * 1000) }));
+const hashes = leaves.map((leaf) => roundLeafHash(31337, distributor, asset, leaf));
 
 // Fixed vectors: leaf and evidence hashes computed with `cast keccak` over `cast abi-encode`; the root and proofs by the reference below.
 test("leaf and evidence hashes match fixed vectors", () => {
-  assert.equal(hashes[0], "0x31fcd771b3b2f3fea31207c7a71819beeb1e48ff05472fd7c82bf5fb73ff0d49");
+  assert.equal(hashes[0], "0x582720671565832db741f1334ffb570650a2f7cbde0b64269eb3e1f9ad69cddf");
   assert.equal(manifestEvidence('{"a":1}'), "0x25e7c2a96531eb50246780c1f25742e489bf55210e26981dc02992bb585feb97");
 });
 
@@ -29,7 +30,7 @@ function reference(level) {
 const verify = (proof, root, node) => proof.reduce((n, s) => (BigInt(n) < BigInt(s) ? keccak256(concat([n, s])) : keccak256(concat([s, n]))), node) === root;
 
 test("Merkle root and proofs match the contract's sorted-pair layout for every tree size", () => {
-  assert.equal(merkleRoot(hashes), "0x66d388bfc8d2c3a77559a6fe915ce21fce1f660ace051e58b30d982ac23614cd");
+  assert.equal(merkleRoot(hashes), reference(hashes).at(-1)[0]);
   for (let size = 1; size <= 9; size++) {
     const nodes = Array.from({ length: size }, (_, i) => keccak256(`0x${(i + 1).toString(16).padStart(2, "0")}`));
     const root = merkleRoot(nodes);
@@ -40,21 +41,26 @@ test("Merkle root and proofs match the contract's sorted-pair layout for every t
   assert.throws(() => merkleProof(hashes, 5));
 });
 
-test("manifest parsing accepts the canonical shape and rejects anything else", () => {
+test("manifest parsing accepts the canonical v2 shape and rejects anything else", () => {
   const manifest = {
-    kind: "claire-round", version: 1, purpose: "claire-holders", chainId: 1, distributor, asset: distributor, total: "10",
+    kind: "claire-round", version: 2, purpose: "claire-holders", chainId: 1, distributor, asset, previousEvidence: null, total: "10", cumulativeTotal: "15",
     snapshot: { chainId: 1, block: "5", token: distributor }, rule: { type: "pro-rata", distributable: "10", eligibleBalance: "3", excluded: [], minBalance: null },
-    leaves: [{ index: 0, account: leaves[0].account, amount: "10", balance: "3" }],
+    leaves: [{ account: leaves[0].account, amount: "10", cumulative: "10", balance: "3" }, { account: leaves[1].account, amount: "0", cumulative: "5", balance: null }],
   };
   assert.deepEqual(parseRoundManifest(JSON.stringify(manifest)), manifest);
-  assert.throws(() => parseRoundManifest(JSON.stringify({ ...manifest, version: 2 })), /kind or version/);
-  assert.throws(() => parseRoundManifest(JSON.stringify({ ...manifest, leaves: [{ ...manifest.leaves[0], index: 1 }] })), /leaf 0/);
-  assert.throws(() => parseRoundManifest(JSON.stringify({ ...manifest, distributor: distributor.toUpperCase().replace("0X", "0x") })), /distributor/);
+  const bad = (patch, pattern) => assert.throws(() => parseRoundManifest(JSON.stringify({ ...manifest, ...patch })), pattern);
+  bad({ version: 1 }, /kind or version/);
+  bad({ previousEvidence: "0xAB" }, /previousEvidence/);
+  bad({ leaves: [{ ...manifest.leaves[0], amount: "11" }] }, /leaf 0/);
+  bad({ leaves: [manifest.leaves[1], manifest.leaves[0]] }, /ascending/);
+  bad({ leaves: [manifest.leaves[0], manifest.leaves[0]] }, /ascending/);
+  bad({ distributor: distributor.toUpperCase().replace("0X", "0x") }, /distributor/);
 });
 
-test("exports the router and revenue lock surface", () => {
+test("exports every v3 contract surface", () => {
   const names = (abi) => abi.map((item) => item.name);
-  assert.ok(names(claireFeeRouterAbi).includes("totalRevenue") && names(claireFeeRouterAbi).includes("quote") && names(claireFeeRouterAbi).includes("OpeningBuyLocked"));
-  assert.ok(names(claireRevenueLockAbi).includes("RevenueLockCreated"));
+  assert.ok(names(claireFeeRouterAbi).includes("payee") && names(claireFeeRouterAbi).includes("setBuyback") && names(claireFeeRouterAbi).includes("stockereumPoolId") && names(claireFeeRouterAbi).includes("BuybackSet"));
+  assert.ok(names(claireRevenueLockAbi).includes("RevenueLockCreated") && names(clairePriceLockAbi).includes("highWater") && names(claireProofViewAbi).includes("proof"));
+  assert.ok(names(claireDistributorAbi).includes("cumulativeTotal") && names(claireVestingVaultAbi).includes("vested") && names(claireSplitAbi).includes("shares") && names(claireVaultFactoryAbi).includes("predictVault"));
   assert.deepEqual(deployments, {});
 });

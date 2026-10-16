@@ -5,7 +5,7 @@ import type {
   AssetsResponse, AssetResponse, TelegramChatsResponse, TelegramMessagesResponse,
   XMentionsResponse, TokenResponse, ListKnowledgeParams, GetKnowledgeItemParams,
   ListAssetsParams, ListTelegramChatsParams, ListTelegramMessagesParams,
-  ListXMentionsParams, TokenLocksResponse, FeeRoutersResponse, TokenRoundsResponse, ListTokenRoundsParams,
+  ListXMentionsParams, TokenLocksResponse, FeeRoutersResponse, TokenRoundsResponse, ListTokenRoundsParams, TokenProofResponse,
 } from "./types.js";
 
 export interface ClaireOptions {
@@ -134,6 +134,10 @@ export class Claire {
     rounds: {
       list: (query: ListTokenRoundsParams = {}, options?: RequestOptions) =>
         this.#get<TokenRoundsResponse>("token/rounds", query, options),
+    },
+    /** Reads the chain (RPC requests), so it is slower than the other token reads; `data` is null when no token is linked. */
+    proof: {
+      get: (options?: RequestOptions) => this.#get<TokenProofResponse>("token/proof", {}, options),
     },
   };
 

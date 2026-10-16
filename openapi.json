@@ -2184,6 +2184,131 @@
           }
         }
       }
+    },
+    "/api/v1/token/proof": {
+      "get": {
+        "tags": [
+          "Token"
+        ],
+        "summary": "Read the token's Claire Proof",
+        "description": "Returns the facts of the public Claire Proof card for the organization's linked token, read from the chain and Claire's records: launch and fee routing, share of supply held by Claire locks, opening-buy lock, revenue and rounds, fee-recipient integrity and connections. Unlike the other token reads it makes RPC requests; data is null when no token is linked.",
+        "operationId": "getTokenProof",
+        "x-required-scope": "token:read",
+        "parameters": [],
+        "responses": {
+          "200": {
+            "description": "The proof as of the stated block",
+            "headers": {
+              "X-Request-Id": {
+                "$ref": "#/components/headers/RequestId"
+              },
+              "RateLimit-Limit": {
+                "$ref": "#/components/headers/RateLimitLimit"
+              },
+              "RateLimit-Remaining": {
+                "$ref": "#/components/headers/RateLimitRemaining"
+              },
+              "RateLimit-Reset": {
+                "$ref": "#/components/headers/RateLimitReset"
+              },
+              "ETag": {
+                "$ref": "#/components/headers/ETag"
+              }
+            },
+            "content": {
+              "application/json": {
+                "schema": {
+                  "type": "object",
+                  "additionalProperties": false,
+                  "required": [
+                    "data",
+                    "meta"
+                  ],
+                  "properties": {
+                    "data": {
+                      "oneOf": [
+                        {
+                          "type": "null"
+                        },
+                        {
+                          "$ref": "#/components/schemas/TokenProof"
+                        }
+                      ]
+                    },
+                    "meta": {
+                      "type": "object",
+                      "additionalProperties": false,
+                      "required": [
+                        "organizationId",
+                        "freshness"
+                      ],
+                      "properties": {
+                        "organizationId": {
+                          "type": "string",
+                          "format": "uuid"
+                        },
+                        "freshness": {
+                          "$ref": "#/components/schemas/Freshness"
+                        }
+                      }
+                    }
+                  }
+                }
+              }
+            }
+          },
+          "304": {
+            "description": "The authenticated, rate-limited request was revalidated after a current database read and the representation is unchanged.",
+            "headers": {
+              "X-Request-Id": {
+                "$ref": "#/components/headers/RequestId"
+              },
+              "RateLimit-Limit": {
+                "$ref": "#/components/headers/RateLimitLimit"
+              },
+              "RateLimit-Remaining": {
+                "$ref": "#/components/headers/RateLimitRemaining"
+              },
+              "RateLimit-Reset": {
+                "$ref": "#/components/headers/RateLimitReset"
+              },
+              "ETag": {
+                "$ref": "#/components/headers/ETag"
+              }
+            }
+          },
+          "400": {
+            "$ref": "#/components/responses/BadRequest"
+          },
+          "401": {
+            "$ref": "#/components/responses/Unauthorized"
+          },
+          "403": {
+            "$ref": "#/components/responses/Forbidden"
+          },
+          "404": {
+            "$ref": "#/components/responses/NotFound"
+          },
+          "405": {
+            "$ref": "#/components/responses/MethodNotAllowed"
+          },
+          "409": {
+            "$ref": "#/components/responses/Conflict"
+          },
+          "413": {
+            "$ref": "#/components/responses/RequestBodyNotAllowed"
+          },
+          "429": {
+            "$ref": "#/components/responses/RateLimited"
+          },
+          "503": {
+            "$ref": "#/components/responses/ServiceUnavailable"
+          },
+          "504": {
+            "$ref": "#/components/responses/RequestTimeout"
+          }
+        }
+      }
     }
   },
   "components": {
@@ -3913,7 +4038,9 @@
           "cliff",
           "end",
           "revenue",
+          "price",
           "cancelable",
+          "cancelNotice",
           "transferable",
           "fundingTransactionHash",
           "published",
@@ -3925,8 +4052,10 @@
             "type": "string",
             "enum": [
               "time",
-              "revenue"
-            ]
+              "revenue",
+              "price"
+            ],
+            "description": "time: unlock by dates (including a locked opening buy); revenue: unlock by fee-router revenue milestones; price: unlock by sampled price targets."
           },
           "id": {
             "type": "string",
@@ -4048,8 +4177,74 @@
               }
             ]
           },
+          "price": {
+            "description": "Price locks only: tokens unlock as the token's sampled price holds above targets. A target is a price in raw units of the quote asset per whole token (1e18 token units); it is reached once the lowest price sampled over 24 consecutive completed hours is at or above it, and then stays unlocked. Prices are sampled on-chain when anyone calls poke; this is a sampled-price trigger, not an oracle. At deadline everything unlocks.",
+            "oneOf": [
+              {
+                "type": "null"
+              },
+              {
+                "type": "object",
+                "additionalProperties": false,
+                "required": [
+                  "router",
+                  "asset",
+                  "highWaterAtCreation",
+                  "deadline",
+                  "tranches"
+                ],
+                "properties": {
+                  "router": {
+                    "type": "string"
+                  },
+                  "asset": {
+                    "type": "string",
+                    "description": "Quote asset; the zero address is native ETH."
+                  },
+                  "highWaterAtCreation": {
+                    "type": "string",
+                    "pattern": "^[0-9]+$",
+                    "description": "The highest price already sustained for 24 hours when the lock was created; the first target is above it."
+                  },
+                  "deadline": {
+                    "type": "string",
+                    "description": "Unix seconds."
+                  },
+                  "tranches": {
+                    "type": "array",
+                    "items": {
+                      "type": "object",
+                      "additionalProperties": false,
+                      "required": [
+                        "price",
+                        "bps"
+                      ],
+                      "properties": {
+                        "price": {
+                          "type": "string",
+                          "pattern": "^[0-9]+$"
+                        },
+                        "bps": {
+                          "type": "integer",
+                          "minimum": 1,
+                          "maximum": 10000
+                        }
+                      }
+                    }
+                  }
+                }
+              }
+            ]
+          },
           "cancelable": {
             "type": "boolean"
+          },
+          "cancelNotice": {
+            "type": [
+              "integer",
+              "null"
+            ],
+            "description": "Time locks that are cancelable: seconds the funder must wait between requesting a cancellation and executing it (0: cancel at once); null otherwise."
           },
           "transferable": {
             "type": "boolean"
@@ -4085,6 +4280,10 @@
           "factory",
           "launchpad",
           "creator",
+          "payee",
+          "payeeKind",
+          "payeeTerms",
+          "buyback",
           "holderBps",
           "projectHolderDistributor",
           "claireHolderDistributor",
@@ -4111,7 +4310,65 @@
             ]
           },
           "creator": {
-            "type": "string"
+            "type": "string",
+            "description": "The launcher: the only wallet that can launch through the router, switch its buyback or publish its holder rounds."
+          },
+          "payee": {
+            "type": "string",
+            "description": "Receives the creator share of every distribution: the creator, or a vesting vault or split deployed through Claire's vault factory. Fixed at deployment."
+          },
+          "payeeKind": {
+            "type": "string",
+            "enum": [
+              "creator",
+              "vault",
+              "split"
+            ]
+          },
+          "payeeTerms": {
+            "description": "A vault's beneficiary and schedule (Unix seconds) or a split's payees and shares (basis points); null when the creator is the payee.",
+            "oneOf": [
+              {
+                "type": "null"
+              },
+              {
+                "type": "object",
+                "additionalProperties": false,
+                "properties": {
+                  "beneficiary": {
+                    "type": "string"
+                  },
+                  "start": {
+                    "type": "string"
+                  },
+                  "cliff": {
+                    "type": "string"
+                  },
+                  "end": {
+                    "type": "string"
+                  },
+                  "payees": {
+                    "type": "array",
+                    "items": {
+                      "type": "string"
+                    }
+                  },
+                  "bps": {
+                    "type": "array",
+                    "items": {
+                      "type": "integer"
+                    }
+                  }
+                }
+              }
+            ]
+          },
+          "buyback": {
+            "type": [
+              "boolean",
+              "null"
+            ],
+            "description": "pons only: whether the launchpad diverts fees into the buyback, as last switched by the creator; null when unknown (Stockereum, or not launched). When on, vested launch tokens are collected as revenue and appear in totals under the launch token's address."
           },
           "holderBps": {
             "type": "integer",
@@ -4211,7 +4468,10 @@
           "roundId",
           "asset",
           "total",
+          "cumulativeTotal",
+          "previousEvidence",
           "recipients",
+          "accounts",
           "snapshotBlock",
           "root",
           "evidence",
@@ -4219,6 +4479,7 @@
           "manifestUrl",
           "publishedAt"
         ],
+        "description": "Rounds are cumulative: each publishes a new root for one asset whose leaves carry every account's running total. A claim pays an account its cumulative amount minus what it already received, against the asset's latest root, so one claim collects every round. Manifest version 2.",
         "properties": {
           "chainId": {
             "type": "integer",
@@ -4245,11 +4506,30 @@
           },
           "total": {
             "type": "string",
-            "pattern": "^[0-9]+$"
+            "pattern": "^[0-9]+$",
+            "description": "Raw amount this round added."
+          },
+          "cumulativeTotal": {
+            "type": "string",
+            "pattern": "^[0-9]+$",
+            "description": "The distributor's cumulative total for the asset after this round (everything promised so far)."
+          },
+          "previousEvidence": {
+            "type": [
+              "string",
+              "null"
+            ],
+            "description": "Evidence of the asset's previous root on this distributor; null for the first round."
           },
           "recipients": {
             "type": "integer",
-            "minimum": 0
+            "minimum": 0,
+            "description": "Accounts this round added to."
+          },
+          "accounts": {
+            "type": "integer",
+            "minimum": 0,
+            "description": "Accounts with a cumulative entitlement in this root."
           },
           "snapshotBlock": {
             "type": "string",
@@ -4278,6 +4558,516 @@
           "publishedAt": {
             "type": "string",
             "format": "date-time"
+          }
+        }
+      },
+      "TokenProof": {
+        "type": "object",
+        "additionalProperties": false,
+        "required": [
+          "chainId",
+          "network",
+          "explorer",
+          "url",
+          "token",
+          "block",
+          "contracts",
+          "claire",
+          "launch",
+          "locked",
+          "openingLock",
+          "ponsLocked",
+          "revenue",
+          "feeRecipient",
+          "links",
+          "project"
+        ],
+        "description": "The facts behind the public Claire Proof card (the page at `url`). Amounts are raw decimal strings in the token's, quote's or asset's own units. On-chain figures were read at `block`; `links` and published locks are Claire's own records, not chain facts.",
+        "properties": {
+          "chainId": {
+            "type": "integer"
+          },
+          "network": {
+            "type": "string"
+          },
+          "explorer": {
+            "type": [
+              "string",
+              "null"
+            ],
+            "description": "Block explorer origin; null on local forks."
+          },
+          "url": {
+            "type": "string",
+            "description": "The public proof page. Append /badge.svg for the embeddable badge."
+          },
+          "token": {
+            "type": "object",
+            "additionalProperties": false,
+            "required": [
+              "address",
+              "name",
+              "symbol",
+              "decimals",
+              "totalSupply"
+            ],
+            "properties": {
+              "address": {
+                "type": "string"
+              },
+              "name": {
+                "type": [
+                  "string",
+                  "null"
+                ]
+              },
+              "symbol": {
+                "type": "string"
+              },
+              "decimals": {
+                "type": "integer"
+              },
+              "totalSupply": {
+                "type": "string",
+                "pattern": "^[0-9]+$"
+              }
+            }
+          },
+          "block": {
+            "type": "object",
+            "additionalProperties": false,
+            "required": [
+              "number",
+              "time"
+            ],
+            "properties": {
+              "number": {
+                "type": "string",
+                "pattern": "^[0-9]+$"
+              },
+              "time": {
+                "type": "string",
+                "pattern": "^[0-9]+$",
+                "description": "Unix seconds."
+              }
+            }
+          },
+          "contracts": {
+            "type": [
+              "object",
+              "null"
+            ],
+            "description": "The proof view and lock contracts the figures were read from; null where Claire is not deployed. Take verification addresses from `@tryclaire/sdk/protocol`.",
+            "additionalProperties": false,
+            "properties": {
+              "proofView": {
+                "type": "string"
+              },
+              "tokenLock": {
+                "type": "string"
+              },
+              "revenueLock": {
+                "type": "string"
+              },
+              "priceLock": {
+                "type": "string"
+              }
+            }
+          },
+          "claire": {
+            "type": "boolean",
+            "description": "Whether a Claire router factory registered the token's launch."
+          },
+          "launch": {
+            "type": [
+              "object",
+              "null"
+            ],
+            "description": "Null when the token was not launched through Claire.",
+            "additionalProperties": false,
+            "properties": {
+              "router": {
+                "type": "string"
+              },
+              "launchpad": {
+                "type": "string",
+                "enum": [
+                  "pons",
+                  "stockereum"
+                ]
+              },
+              "creator": {
+                "type": "string"
+              },
+              "payee": {
+                "type": "string"
+              },
+              "payeeKind": {
+                "type": "string",
+                "enum": [
+                  "creator",
+                  "vault",
+                  "split",
+                  "other"
+                ]
+              },
+              "holderBps": {
+                "type": "integer",
+                "minimum": 0
+              },
+              "buyback": {
+                "type": [
+                  "boolean",
+                  "null"
+                ],
+                "description": "pons only."
+              }
+            }
+          },
+          "locked": {
+            "type": "object",
+            "additionalProperties": false,
+            "required": [
+              "time",
+              "revenue",
+              "price",
+              "total",
+              "percent",
+              "locks"
+            ],
+            "description": "Tokens the Claire lock contracts hold for locks of this token (vested but unclaimed included) and their share of total supply.",
+            "properties": {
+              "time": {
+                "type": "string",
+                "pattern": "^[0-9]+$"
+              },
+              "revenue": {
+                "type": "string",
+                "pattern": "^[0-9]+$"
+              },
+              "price": {
+                "type": "string",
+                "pattern": "^[0-9]+$"
+              },
+              "total": {
+                "type": "string",
+                "pattern": "^[0-9]+$"
+              },
+              "percent": {
+                "type": [
+                  "string",
+                  "null"
+                ],
+                "description": "Share of total supply with up to four decimals, or \"<0.0001\"."
+              },
+              "locks": {
+                "type": "array",
+                "description": "The organization's published locks of this token.",
+                "items": {
+                  "type": "object",
+                  "additionalProperties": false,
+                  "required": [
+                    "id",
+                    "kind",
+                    "lockId",
+                    "url"
+                  ],
+                  "properties": {
+                    "id": {
+                      "type": "string"
+                    },
+                    "kind": {
+                      "type": "string",
+                      "enum": [
+                        "time",
+                        "revenue",
+                        "price"
+                      ]
+                    },
+                    "lockId": {
+                      "type": "string"
+                    },
+                    "url": {
+                      "type": "string"
+                    }
+                  }
+                }
+              }
+            }
+          },
+          "openingLock": {
+            "type": [
+              "object",
+              "null"
+            ],
+            "description": "From the confirmed launch receipt; null when this app has none for the token.",
+            "additionalProperties": false,
+            "properties": {
+              "locked": {
+                "type": "boolean"
+              },
+              "lockId": {
+                "type": [
+                  "string",
+                  "null"
+                ]
+              },
+              "amount": {
+                "type": [
+                  "string",
+                  "null"
+                ]
+              },
+              "contract": {
+                "type": [
+                  "string",
+                  "null"
+                ]
+              },
+              "url": {
+                "type": [
+                  "string",
+                  "null"
+                ],
+                "description": "The lock's proof page when it is published."
+              },
+              "transactionHash": {
+                "type": [
+                  "string",
+                  "null"
+                ]
+              }
+            }
+          },
+          "ponsLocked": {
+            "type": [
+              "object",
+              "null"
+            ],
+            "description": "pons only: launch tokens the launchpad's locker holds.",
+            "additionalProperties": false,
+            "properties": {
+              "amount": {
+                "type": "string"
+              },
+              "percent": {
+                "type": [
+                  "string",
+                  "null"
+                ]
+              },
+              "locker": {
+                "type": "string"
+              }
+            }
+          },
+          "revenue": {
+            "type": [
+              "object",
+              "null"
+            ],
+            "additionalProperties": false,
+            "description": "Router revenue and the holder rounds published from its distributor.",
+            "properties": {
+              "distributor": {
+                "type": "string"
+              },
+              "assets": {
+                "type": "array",
+                "items": {
+                  "type": "object",
+                  "additionalProperties": false,
+                  "required": [
+                    "asset",
+                    "symbol",
+                    "decimals",
+                    "routed",
+                    "published"
+                  ],
+                  "properties": {
+                    "asset": {
+                      "type": "string"
+                    },
+                    "symbol": {
+                      "type": "string"
+                    },
+                    "decimals": {
+                      "type": "integer"
+                    },
+                    "routed": {
+                      "type": "string",
+                      "description": "Revenue the router has counted on chain."
+                    },
+                    "published": {
+                      "type": [
+                        "string",
+                        "null"
+                      ],
+                      "description": "Cumulative total promised to holders by the latest confirmed round."
+                    }
+                  }
+                }
+              },
+              "rounds": {
+                "type": "array",
+                "items": {
+                  "type": "object",
+                  "additionalProperties": false,
+                  "required": [
+                    "asset",
+                    "roundId",
+                    "total",
+                    "cumulativeTotal",
+                    "evidence",
+                    "manifestUrl",
+                    "transactionHash",
+                    "publishedAt"
+                  ],
+                  "properties": {
+                    "asset": {
+                      "type": "string"
+                    },
+                    "roundId": {
+                      "type": "string"
+                    },
+                    "total": {
+                      "type": "string"
+                    },
+                    "cumulativeTotal": {
+                      "type": "string"
+                    },
+                    "evidence": {
+                      "type": "string"
+                    },
+                    "manifestUrl": {
+                      "type": [
+                        "string",
+                        "null"
+                      ]
+                    },
+                    "transactionHash": {
+                      "type": [
+                        "string",
+                        "null"
+                      ]
+                    },
+                    "publishedAt": {
+                      "type": "string",
+                      "format": "date-time"
+                    }
+                  }
+                }
+              }
+            }
+          },
+          "feeRecipient": {
+            "type": [
+              "object",
+              "null"
+            ],
+            "description": "The launchpad's creator-fee recipient; ok is true when the Claire router is the recipient and no change is pending. Null when it could not be read.",
+            "additionalProperties": false,
+            "properties": {
+              "recipient": {
+                "type": "string"
+              },
+              "ok": {
+                "type": "boolean"
+              },
+              "pending": {
+                "type": [
+                  "object",
+                  "null"
+                ],
+                "additionalProperties": false,
+                "properties": {
+                  "recipient": {
+                    "type": "string"
+                  },
+                  "effectiveAt": {
+                    "type": "string"
+                  },
+                  "expiresAt": {
+                    "type": "string"
+                  }
+                }
+              }
+            }
+          },
+          "links": {
+            "type": "object",
+            "additionalProperties": false,
+            "required": [
+              "x",
+              "telegram",
+              "domain"
+            ],
+            "description": "Connections the organization made inside Claire: an X account linked by OAuth, a public Telegram chat the Claire bot administers, a custom domain Claire verified. Not on-chain facts.",
+            "properties": {
+              "x": {
+                "type": [
+                  "object",
+                  "null"
+                ],
+                "additionalProperties": false,
+                "properties": {
+                  "username": {
+                    "type": "string"
+                  },
+                  "url": {
+                    "type": "string"
+                  }
+                }
+              },
+              "telegram": {
+                "type": [
+                  "object",
+                  "null"
+                ],
+                "additionalProperties": false,
+                "properties": {
+                  "title": {
+                    "type": "string"
+                  },
+                  "url": {
+                    "type": "string"
+                  }
+                }
+              },
+              "domain": {
+                "type": [
+                  "object",
+                  "null"
+                ],
+                "additionalProperties": false,
+                "properties": {
+                  "hostname": {
+                    "type": "string"
+                  },
+                  "url": {
+                    "type": "string"
+                  }
+                }
+              }
+            }
+          },
+          "project": {
+            "type": [
+              "object",
+              "null"
+            ],
+            "additionalProperties": false,
+            "properties": {
+              "name": {
+                "type": "string"
+              },
+              "slug": {
+                "type": "string"
+              },
+              "url": {
+                "type": "string"
+              }
+            }
           }
         }
       }

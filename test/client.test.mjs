@@ -92,28 +92,32 @@ test('routes all read resources, preserves exact query values and the server env
   assert.ok(token.http.headers instanceof Headers);
 });
 
-test('routes token locks, fee routers and rounds with their typed envelopes', async (t) => {
+test('routes token locks, fee routers, rounds and the proof with their typed envelopes', async (t) => {
   const requests = [];
-  const lock = { kind: 'revenue', id: 'revenue-3', chainId: 46630, lockId: '3', amount: '1000', schedule: null, start: null, cliff: null, end: null };
-  const router = { router: '0x0000000000000000000000000000000000000001', launchpad: 'pons', holderBps: 5000, totals: [] };
-  const round = { chainId: 46630, purpose: 'airdrop', roundId: '0', evidence: '0x' + '11'.repeat(32), manifestUrl: null, recipients: 2 };
+  const lock = { kind: 'price', id: 'price-3', chainId: 46630, lockId: '3', amount: '1000', schedule: null, start: null, cliff: null, end: null, cancelNotice: 0 };
+  const router = { router: '0x0000000000000000000000000000000000000001', launchpad: 'pons', payee: '0x0000000000000000000000000000000000000002', buyback: true, holderBps: 5000, totals: [] };
+  const round = { chainId: 46630, purpose: 'airdrop', roundId: '0', evidence: '0x' + '11'.repeat(32), previousEvidence: null, cumulativeTotal: '2000', manifestUrl: null, recipients: 2 };
+  const proof = { chainId: 46630, block: 12, url: 'https://app.tryclaire.net/proof/46630/0x1' };
   const baseUrl = await serve(t, (req, res) => {
     requests.push(req.url);
     const path = new URL(req.url, 'http://localhost').pathname;
     if (path === '/api/v1/token/locks') json(res, envelope([lock]));
     else if (path === '/api/v1/token/fee-routers') json(res, envelope([router]));
     else if (path === '/api/v1/token/rounds') json(res, envelope([round], page));
+    else if (path === '/api/v1/token/proof') json(res, envelope(proof));
     else res.writeHead(404).end();
   });
   const sdk = client(baseUrl);
   const locks = await sdk.token.locks.list();
   const routers = await sdk.token.feeRouters.list();
   const rounds = await sdk.token.rounds.list({ page: 2 });
-  assert.deepEqual(requests, ['/api/v1/token/locks', '/api/v1/token/fee-routers', '/api/v1/token/rounds?page=2']);
+  const proofRead = await sdk.token.proof.get();
+  assert.deepEqual(requests, ['/api/v1/token/locks', '/api/v1/token/fee-routers', '/api/v1/token/rounds?page=2', '/api/v1/token/proof']);
   assert.deepEqual(locks.data, [lock]);
   assert.deepEqual(routers.data, [router]);
   assert.deepEqual(rounds.data, [round]);
   assert.deepEqual(rounds.pagination, page);
+  assert.deepEqual(proofRead.data, proof);
   assert.equal(rounds.http.status, 200);
 });
 

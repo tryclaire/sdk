@@ -1,13 +1,13 @@
 import { concat, encodeAbiParameters, keccak256, toHex, type Address, type Hex } from "viem";
 
-/** One allocation of a distributor round; `amount` is a raw integer string, exactly what the Merkle leaf commits to. */
-export type RoundLeaf = { index: number; account: Address; amount: string };
+/** One account's entitlement in a distributor root; `cumulative` is a raw integer string, everything the account was ever promised for the asset. */
+export type RoundLeaf = { account: Address; cumulative: string };
 
-/** `ClaireDistributor.leaf`: the double-hashed encoding of chain, distributor, round, index, account and amount. */
-export function roundLeafHash(chainId: number, distributor: Address, roundId: bigint, leaf: RoundLeaf): Hex {
+/** `ClaireDistributor.leaf`: the double-hashed encoding of chain, distributor, asset, account and cumulative amount. */
+export function roundLeafHash(chainId: number, distributor: Address, asset: Address, leaf: RoundLeaf): Hex {
   return keccak256(keccak256(encodeAbiParameters(
-    [{ type: "uint256" }, { type: "address" }, { type: "uint256" }, { type: "uint256" }, { type: "address" }, { type: "uint128" }],
-    [BigInt(chainId), distributor, roundId, BigInt(leaf.index), leaf.account, BigInt(leaf.amount)],
+    [{ type: "uint256" }, { type: "address" }, { type: "address" }, { type: "address" }, { type: "uint256" }],
+    [BigInt(chainId), distributor, asset, leaf.account, BigInt(leaf.cumulative)],
   )));
 }
 

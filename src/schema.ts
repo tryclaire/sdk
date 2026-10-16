@@ -319,6 +319,26 @@ export interface paths {
         patch?: never;
         trace?: never;
     };
+    "/api/v1/token/proof": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        /**
+         * Read the token's Claire Proof
+         * @description Returns the facts of the public Claire Proof card for the organization's linked token, read from the chain and Claire's records: launch and fee routing, share of supply held by Claire locks, opening-buy lock, revenue and rounds, fee-recipient integrity and connections. Unlike the other token reads it makes RPC requests; data is null when no token is linked.
+         */
+        get: operations["getTokenProof"];
+        put?: never;
+        post?: never;
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
 }
 export type webhooks = Record<string, never>;
 export interface components {
@@ -630,8 +650,11 @@ export interface components {
             };
         };
         TokenLock: {
-            /** @enum {string} */
-            kind: "time" | "revenue";
+            /**
+             * @description time: unlock by dates (including a locked opening buy); revenue: unlock by fee-router revenue milestones; price: unlock by sampled price targets.
+             * @enum {string}
+             */
+            kind: "time" | "revenue" | "price";
             /** @description Public proof ID: /locks/{chainId}/{id}. */
             id: string;
             chainId: number;
@@ -666,7 +689,23 @@ export interface components {
                     bps: number;
                 }[];
             };
+            /** @description Price locks only: tokens unlock as the token's sampled price holds above targets. A target is a price in raw units of the quote asset per whole token (1e18 token units); it is reached once the lowest price sampled over 24 consecutive completed hours is at or above it, and then stays unlocked. Prices are sampled on-chain when anyone calls poke; this is a sampled-price trigger, not an oracle. At deadline everything unlocks. */
+            price: null | {
+                router: string;
+                /** @description Quote asset; the zero address is native ETH. */
+                asset: string;
+                /** @description The highest price already sustained for 24 hours when the lock was created; the first target is above it. */
+                highWaterAtCreation: string;
+                /** @description Unix seconds. */
+                deadline: string;
+                tranches: {
+                    price: string;
+                    bps: number;
+                }[];
+            };
             cancelable: boolean;
+            /** @description Time locks that are cancelable: seconds the funder must wait between requesting a cancellation and executing it (0: cancel at once); null otherwise. */
+            cancelNotice: number | null;
             transferable: boolean;
             fundingTransactionHash: string | null;
             published: boolean;
@@ -681,7 +720,23 @@ export interface components {
             factory: string;
             /** @enum {string} */
             launchpad: "pons" | "stockereum";
+            /** @description The launcher: the only wallet that can launch through the router, switch its buyback or publish its holder rounds. */
             creator: string;
+            /** @description Receives the creator share of every distribution: the creator, or a vesting vault or split deployed through Claire's vault factory. Fixed at deployment. */
+            payee: string;
+            /** @enum {string} */
+            payeeKind: "creator" | "vault" | "split";
+            /** @description A vault's beneficiary and schedule (Unix seconds) or a split's payees and shares (basis points); null when the creator is the payee. */
+            payeeTerms: null | {
+                beneficiary?: string;
+                start?: string;
+                cliff?: string;
+                end?: string;
+                payees?: string[];
+                bps?: number[];
+            };
+            /** @description pons only: whether the launchpad diverts fees into the buyback, as last switched by the creator; null when unknown (Stockereum, or not launched). When on, vested launch tokens are collected as revenue and appear in totals under the launch token's address. */
+            buyback: boolean | null;
             /** @description Project holders' share of trading revenue, in basis points. */
             holderBps: number;
             projectHolderDistributor: string;
@@ -706,6 +761,7 @@ export interface components {
             /** Format: date-time */
             deployedAt: string;
         };
+        /** @description Rounds are cumulative: each publishes a new root for one asset whose leaves carry every account's running total. A claim pays an account its cumulative amount minus what it already received, against the asset's latest root, so one claim collects every round. Manifest version 2. */
         TokenRound: {
             /** @description Chain of the distributor. */
             chainId: number;
@@ -714,8 +770,16 @@ export interface components {
             distributor: string;
             roundId: string;
             asset: string;
+            /** @description Raw amount this round added. */
             total: string;
+            /** @description The distributor's cumulative total for the asset after this round (everything promised so far). */
+            cumulativeTotal: string;
+            /** @description Evidence of the asset's previous root on this distributor; null for the first round. */
+            previousEvidence: string | null;
+            /** @description Accounts this round added to. */
             recipients: number;
+            /** @description Accounts with a cumulative entitlement in this root. */
+            accounts: number;
             snapshotBlock: string;
             root: string;
             /** @description keccak-256 of the exact manifest string served at manifestUrl. */
@@ -725,6 +789,136 @@ export interface components {
             manifestUrl: string | null;
             /** Format: date-time */
             publishedAt: string;
+        };
+        /** @description The facts behind the public Claire Proof card (the page at `url`). Amounts are raw decimal strings in the token's, quote's or asset's own units. On-chain figures were read at `block`; `links` and published locks are Claire's own records, not chain facts. */
+        TokenProof: {
+            chainId: number;
+            network: string;
+            /** @description Block explorer origin; null on local forks. */
+            explorer: string | null;
+            /** @description The public proof page. Append /badge.svg for the embeddable badge. */
+            url: string;
+            token: {
+                address: string;
+                name: string | null;
+                symbol: string;
+                decimals: number;
+                totalSupply: string;
+            };
+            block: {
+                number: string;
+                /** @description Unix seconds. */
+                time: string;
+            };
+            /** @description The proof view and lock contracts the figures were read from; null where Claire is not deployed. Take verification addresses from `@tryclaire/sdk/protocol`. */
+            contracts: {
+                proofView?: string;
+                tokenLock?: string;
+                revenueLock?: string;
+                priceLock?: string;
+            } | null;
+            /** @description Whether a Claire router factory registered the token's launch. */
+            claire: boolean;
+            /** @description Null when the token was not launched through Claire. */
+            launch: {
+                router?: string;
+                /** @enum {string} */
+                launchpad?: "pons" | "stockereum";
+                creator?: string;
+                payee?: string;
+                /** @enum {string} */
+                payeeKind?: "creator" | "vault" | "split" | "other";
+                holderBps?: number;
+                /** @description pons only. */
+                buyback?: boolean | null;
+            } | null;
+            /** @description Tokens the Claire lock contracts hold for locks of this token (vested but unclaimed included) and their share of total supply. */
+            locked: {
+                time: string;
+                revenue: string;
+                price: string;
+                total: string;
+                /** @description Share of total supply with up to four decimals, or "<0.0001". */
+                percent: string | null;
+                /** @description The organization's published locks of this token. */
+                locks: {
+                    id: string;
+                    /** @enum {string} */
+                    kind: "time" | "revenue" | "price";
+                    lockId: string;
+                    url: string;
+                }[];
+            };
+            /** @description From the confirmed launch receipt; null when this app has none for the token. */
+            openingLock: {
+                locked?: boolean;
+                lockId?: string | null;
+                amount?: string | null;
+                contract?: string | null;
+                /** @description The lock's proof page when it is published. */
+                url?: string | null;
+                transactionHash?: string | null;
+            } | null;
+            /** @description pons only: launch tokens the launchpad's locker holds. */
+            ponsLocked: {
+                amount?: string;
+                percent?: string | null;
+                locker?: string;
+            } | null;
+            /** @description Router revenue and the holder rounds published from its distributor. */
+            revenue: {
+                distributor?: string;
+                assets?: {
+                    asset: string;
+                    symbol: string;
+                    decimals: number;
+                    /** @description Revenue the router has counted on chain. */
+                    routed: string;
+                    /** @description Cumulative total promised to holders by the latest confirmed round. */
+                    published: string | null;
+                }[];
+                rounds?: {
+                    asset: string;
+                    roundId: string;
+                    total: string;
+                    cumulativeTotal: string;
+                    evidence: string;
+                    manifestUrl: string | null;
+                    transactionHash: string | null;
+                    /** Format: date-time */
+                    publishedAt: string;
+                }[];
+            } | null;
+            /** @description The launchpad's creator-fee recipient; ok is true when the Claire router is the recipient and no change is pending. Null when it could not be read. */
+            feeRecipient: {
+                recipient?: string;
+                ok?: boolean;
+                pending?: {
+                    recipient?: string;
+                    effectiveAt?: string;
+                    expiresAt?: string;
+                } | null;
+            } | null;
+            /** @description Connections the organization made inside Claire: an X account linked by OAuth, a public Telegram chat the Claire bot administers, a custom domain Claire verified. Not on-chain facts. */
+            links: {
+                x: {
+                    username?: string;
+                    url?: string;
+                } | null;
+                telegram: {
+                    title?: string;
+                    url?: string;
+                } | null;
+                domain: {
+                    hostname?: string;
+                    url?: string;
+                } | null;
+            };
+            project: {
+                name?: string;
+                slug?: string;
+                url?: string;
+            } | null;
         };
     };
     responses: {
@@ -1777,6 +1971,60 @@ export interface operations {
                             freshness: components["schemas"]["Freshness"];
                         };
                         pagination: components["schemas"]["NumberedPagination"];
+                    };
+                };
+            };
+            /** @description The authenticated, rate-limited request was revalidated after a current database read and the representation is unchanged. */
+            304: {
+                headers: {
+                    "X-Request-Id": components["headers"]["RequestId"];
+                    "RateLimit-Limit": components["headers"]["RateLimitLimit"];
+                    "RateLimit-Remaining": components["headers"]["RateLimitRemaining"];
+                    "RateLimit-Reset": components["headers"]["RateLimitReset"];
+                    ETag: components["headers"]["ETag"];
+                    [name: string]: unknown;
+                };
+                content?: never;
+            };
+            400: components["responses"]["BadRequest"];
+            401: components["responses"]["Unauthorized"];
+            403: components["responses"]["Forbidden"];
+            404: components["responses"]["NotFound"];
+            405: components["responses"]["MethodNotAllowed"];
+            409: components["responses"]["Conflict"];
+            413: components["responses"]["RequestBodyNotAllowed"];
+            429: components["responses"]["RateLimited"];
+            503: components["responses"]["ServiceUnavailable"];
+            504: components["responses"]["RequestTimeout"];
+        };
+    };
+    getTokenProof: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            /** @description The proof as of the stated block */
+            200: {
+                headers: {
+                    "X-Request-Id": components["headers"]["RequestId"];
+                    "RateLimit-Limit": components["headers"]["RateLimitLimit"];
+                    "RateLimit-Remaining": components["headers"]["RateLimitRemaining"];
+                    "RateLimit-Reset": components["headers"]["RateLimitReset"];
+                    ETag: components["headers"]["ETag"];
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": {
+                        data: null | components["schemas"]["TokenProof"];
+                        meta: {
+                            /** Format: uuid */
+                            organizationId: string;
+                            freshness: components["schemas"]["Freshness"];
+                        };
                     };
                 };
             };
