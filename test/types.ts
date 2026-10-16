@@ -57,14 +57,19 @@ async function consume() {
   }
   const latestTrade: string | null = token.data.latestTradeAt;
   const locks = await sdk.token.locks.list();
-  const lockKind: 'time' | 'revenue' | undefined = locks.data[0]?.kind;
+  const lockKind: 'time' | 'revenue' | 'price' | undefined = locks.data[0]?.kind;
   const lockProof: string | undefined = locks.data[0]?.id;
+  const lockNotice: number | null | undefined = locks.data[0]?.cancelNotice;
   const feeRouters = await sdk.token.feeRouters.list();
   const launchpad: 'pons' | 'stockereum' | undefined = feeRouters.data[0]?.launchpad;
+  const payee: string | undefined = feeRouters.data[0]?.payee;
   const rounds = await sdk.token.rounds.list({ page: 2 });
   const manifestUrl: string | null | undefined = rounds.data[0]?.manifestUrl;
+  const cumulativeTotal: string | undefined = rounds.data[0]?.cumulativeTotal;
   const roundPage: number = rounds.pagination.page;
-  void [lockKind, lockProof, launchpad, manifestUrl, roundPage];
+  const proof = await sdk.token.proof.get();
+  const proofChain: number | undefined = proof.data?.chainId;
+  void [lockKind, lockProof, lockNotice, launchpad, payee, manifestUrl, cumulativeTotal, roundPage, proofChain];
   const error = null as unknown as ClaireAPIError;
   const retry: number | null = error.retryAfterSeconds;
   const responseError = null as unknown as ClaireResponseError;

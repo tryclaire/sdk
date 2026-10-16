@@ -14,12 +14,14 @@ database/provider access are needed.
 
 ## Protocol module
 
-`src/protocol/abis.ts` and the integration test's contract artifacts (`test/integration/artifacts.json`)
-are generated from the protocol repository. With the [protocol](https://github.com/tryclaire/protocol)
-checked out next to this repository (or `CLAIRE_PROTOCOL_DIR` set) and built with `forge build`, run
+`src/protocol/abis.ts` (the ABIs of all 11 Claire v3 contracts) and the integration test's contract artifacts
+(`test/integration/artifacts.json`: ABI and creation bytecode of those contracts plus the launchpad mocks)
+are generated from the Claire protocol repository. With the protocol repository
+checked out next to this repository (or `CLAIRE_PROTOCOL_DIR` set), exported (`abi/`) and built with `forge build`, run
 `npm run sync-abis` after it changes and `npm run check:abis` to verify. `npm run test:integration`
-deploys those artifacts to local anvil chains and runs every verifier against them; it needs Foundry's
-`anvil`.
+deploys those artifacts to local anvil chains and runs every verifier against them, including tampered and
+forged inputs (contract storage is corrupted with `anvil_setStorageAt`); it needs Foundry's `anvil`. When a
+protocol change adds a contract or mock the test needs, add it to the lists in `scripts/sync-abis.mjs`.
 
 ### Installing unreleased versions
 
