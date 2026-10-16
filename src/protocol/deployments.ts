@@ -7,6 +7,8 @@ import type { Address } from "viem";
 export type ClaireDeployment = {
   routerFactory: Address; routerDeployer: Address; tokenLock: Address; revenueLock: Address; priceLock: Address; distributorFactory: Address; vaultFactory: Address; proofView: Address;
   claireHolderDistributor: Address; referralDistributor: Address; treasury: Address; feeToken: Address;
+  /** The chain height before the deployment transactions (the manifest's `block`): the default start of the verifiers' event scans on that chain. */
+  block: bigint;
 };
 
 /** Known deployments by chain ID. Every function takes explicit addresses; spread an entry in when one is listed. */
