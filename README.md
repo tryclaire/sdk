@@ -24,7 +24,7 @@ console.log(meta.freshness); // persisted source freshness, not a live provider 
 
 [API reference](https://app.tryclaire.net/developers) ·
 [Agent skill](https://app.tryclaire.net/developers/skill.md) ·
-[Docs](https://docs.tryclaire.net/reference/developer-api) ·
+[Docs](https://docs.tryclaire.net/sdk) ·
 [npm](https://www.npmjs.com/package/@tryclaire/sdk) ·
 [Releases](https://github.com/tryclaire/sdk/releases)
 
