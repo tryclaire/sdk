@@ -7,7 +7,7 @@ async function consume() {
   const scope: 'context:read' | 'knowledge:read' | 'assets:read' | 'telegram:read' | 'x:read' | 'token:read' | undefined = context.data.grantedScopes[0];
   const requestId: string | null = context.http.requestId;
   const freshness: 'current' | 'stale' | 'unavailable' | 'synthetic' = context.meta.freshness.status;
-  const identity: string | undefined = context.data.organization.displayName;
+  const identity: string | undefined = context.data.project.displayName;
   const connection: boolean | undefined = context.data.connections.telegram?.connected;
   const approved: ContextSource | undefined = context.data.sources[0];
   const sources: SourcesResponse = await sdk.sources.list();

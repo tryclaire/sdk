@@ -42,7 +42,7 @@ declarations are included.
 On the **Developers** page, an owner or admin creates a workspace key for
 **API**, **MCP**, or **both**, with only the needed read scopes and a 7-, 30-, or 90-day
 expiry. This REST SDK requires API access; older keys remain API-only. The key selects
-its workspace; no organization ID is passed to the SDK. Keys stop working when the
+its workspace; no project ID is passed to the SDK. Keys stop working when the
 issuing user loses owner/admin membership.
 
 Use the SDK on a server, in a CLI, or in an agent process. **Never put a workspace key in
@@ -159,7 +159,7 @@ existing worker cadence.
 import { ClaireAPIError, ClaireResponseError } from "@tryclaire/sdk";
 try {
   const result = await claire.context.get({ signal: AbortSignal.timeout(5_000) });
-  console.log(result.data.organization.id, result.data.organization.displayName);
+  console.log(result.data.project.id, result.data.project.displayName);
   console.log(result.data.connections.telegram?.connected); // absent if not approved for this key
   console.log(result.data.sources.map((source) => source.id));
 } catch (error) {
