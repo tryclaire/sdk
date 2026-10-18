@@ -180,7 +180,7 @@ export class Claire {
       );
     }
     if (response.status !== 200 || !record(payload) || !Object.hasOwn(payload, "data") ||
-        !record(payload.meta) || typeof payload.meta.organizationId !== "string" ||
+        !record(payload.meta) || typeof payload.meta.projectId !== "string" ||
         !record(payload.meta.freshness)) {
       throw new ClaireResponseError(response);
     }

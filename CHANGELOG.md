@@ -1,5 +1,9 @@
 # Changelog
 
+## Unreleased
+
+- API client, breaking: Claire's workspaces are projects. `meta.organizationId` is `meta.projectId` and `context.get()` returns `data.project` instead of `data.organization`. The bundled OpenAPI snapshot and generated types are resynced.
+
 ## 0.7.0
 
 Tokens already live on pons can be brought to Claire (`ClaireFeeRouter.adopt`, with a USD 25 migration fee); the protocol verifiers recognise them. The creator can now raise a router's holder share at any time (never lower it) and change the payee with 7 days' public notice; the verifiers follow those changes. Breaking: the router, router factory and proof view ABIs changed (the factory constructor takes `migrationFee` after `launchFee` and a `ClaireRouterDeployer` last; routers and proof view read `payee` and `holderBps` as current values).

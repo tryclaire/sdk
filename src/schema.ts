@@ -87,8 +87,8 @@ export interface paths {
             cookie?: never;
         };
         /**
-         * Read organization context
-         * @description Returns the credential-selected organization, granted scopes, and availability of persisted connections without calling providers.
+         * Read project context
+         * @description Returns the credential-selected project, granted scopes, and availability of persisted connections without calling providers.
          */
         get: operations["getContext"];
         put?: never;
@@ -168,7 +168,7 @@ export interface paths {
         };
         /**
          * Read asset metadata
-         * @description Returns metadata for one organization-owned file or folder. No private object key or signed URL is exposed.
+         * @description Returns metadata for one project-owned file or folder. No private object key or signed URL is exposed.
          */
         get: operations["getAsset"];
         put?: never;
@@ -228,7 +228,7 @@ export interface paths {
         };
         /**
          * List persisted X mentions
-         * @description Reads the collector's stored payload and never performs a paid X request. The organization is marked watched for 90 seconds so the existing worker can use its active cadence; this request does not force collection. Page size is 20.
+         * @description Reads the collector's stored payload and never performs a paid X request. The project is marked watched for 90 seconds so the existing worker can use its active cadence; this request does not force collection. Page size is 20.
          */
         get: operations["listXMentions"];
         put?: never;
@@ -248,7 +248,7 @@ export interface paths {
         };
         /**
          * Read persisted token summary
-         * @description Returns linked-token metadata, transfer-index coverage, holder totals, and the latest stored fee snapshot. It makes no RPC or market-provider request. The organization is marked watched for 90 seconds so the budgeted worker can use its active cadence; this request does not force collection.
+         * @description Returns linked-token metadata, transfer-index coverage, holder totals, and the latest stored fee snapshot. It makes no RPC or market-provider request. The project is marked watched for 90 seconds so the budgeted worker can use its active cadence; this request does not force collection.
          */
         get: operations["getToken"];
         put?: never;
@@ -268,7 +268,7 @@ export interface paths {
         };
         /**
          * List Claire locks
-         * @description Lists the organization's locks from persisted, confirmed funding receipts, with public proof IDs. It makes no RPC request; claimed and remaining amounts are on each lock's public proof page.
+         * @description Lists the project's locks from persisted, confirmed funding receipts, with public proof IDs. It makes no RPC request; claimed and remaining amounts are on each lock's public proof page.
          */
         get: operations["listTokenLocks"];
         put?: never;
@@ -288,7 +288,7 @@ export interface paths {
         };
         /**
          * List fee routers
-         * @description Lists the organization's confirmed Claire fee routers with their current terms (holder share, payee, any pending creator share change and the history of changes) and the sums of confirmed harvests per asset. It makes no RPC request.
+         * @description Lists the project's confirmed Claire fee routers with their current terms (holder share, payee, any pending creator share change and the history of changes) and the sums of confirmed harvests per asset. It makes no RPC request.
          */
         get: operations["listFeeRouters"];
         put?: never;
@@ -308,7 +308,7 @@ export interface paths {
         };
         /**
          * List distribution rounds
-         * @description Lists the organization's confirmed project-holder and airdrop rounds. Each manifestUrl serves the canonical manifest verbatim; its keccak-256 is the round's on-chain evidence.
+         * @description Lists the project's confirmed project-holder and airdrop rounds. Each manifestUrl serves the canonical manifest verbatim; its keccak-256 is the round's on-chain evidence.
          */
         get: operations["listTokenRounds"];
         put?: never;
@@ -328,12 +328,319 @@ export interface paths {
         };
         /**
          * Read the token's Claire Proof
-         * @description Returns the Claire Proof facts for the organization's linked token, as shown on the token's public proof page, read from the chain and Claire's records: launch and fee routing, share of supply held by Claire locks, opening-buy lock, revenue and rounds, fee-recipient integrity and connections. Unlike the other token reads it makes RPC requests; data is null when no token is linked.
+         * @description Returns the Claire Proof facts for the project's linked token, as shown on the token's public proof page, read from the chain and Claire's records: launch and fee routing, share of supply held by Claire locks, opening-buy lock, revenue and rounds, fee-recipient integrity and connections. Unlike the other token reads it makes RPC requests; data is null when no token is linked.
          */
         get: operations["getTokenProof"];
         put?: never;
         post?: never;
         delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/api/v1/models": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        /**
+         * List chat models
+         * @description Model ids with Claire's price per token in USD. Charged nothing.
+         */
+        get: operations["listModels"];
+        put?: never;
+        post?: never;
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/api/v1/chat/completions": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        get?: never;
+        put?: never;
+        /**
+         * Create a chat completion
+         * @description OpenAI-compatible: the request and response follow the OpenAI Chat Completions schema (https://platform.openai.com/docs/api-reference/chat/create), so any OpenAI SDK works with Claire's base URL and a Claire key. Set stream to true for server-sent events; Claire asks for the final usage chunk itself. Billed per token from the usage the model returns, at the prices from /api/v1/models; a request without max_tokens or max_completion_tokens gets a default cap. Refused with 402 before running when the balance is zero or less or the key reached its monthly limit; 404 model_not_found for an unknown model.
+         */
+        post: operations["createChatCompletion"];
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/api/v1/rpc/robinhood": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        get?: never;
+        put?: never;
+        /**
+         * Send a Robinhood Chain JSON-RPC request
+         * @description JSON-RPC 2.0, one call or a batch of up to 100; billed per call. Reads and eth_sendRawTransaction only: admin, debug, trace and signing methods are refused with 403 method_not_allowed. Wallets that cannot send a header can put the key in the path instead: POST /rpc/robinhood/{key} (same body and billing, no /api/v1 prefix); treat that URL as a secret.
+         */
+        post: operations["robinhoodRpc"];
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/rpc/robinhood/{key}": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        get?: never;
+        put?: never;
+        /**
+         * Send a Robinhood Chain JSON-RPC request with the key in the path
+         * @description The same as POST /api/v1/rpc/robinhood, authorized by the rpc key in the path instead of a Bearer header.
+         */
+        post: operations["robinhoodRpcKeyInPath"];
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/api/v1/vms": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        /** List virtual machines */
+        get: operations["listVirtualMachines"];
+        put?: never;
+        /**
+         * Create a virtual machine
+         * @description Starts a machine and bills it per running hour until it is stopped or deleted. Refused with 402 when the balance is zero or less; a running machine is stopped automatically when the balance reaches zero or its key reaches its monthly limit.
+         */
+        post: operations["createVirtualMachine"];
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/api/v1/vms/{id}": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        /** Read a virtual machine */
+        get: operations["getVirtualMachine"];
+        put?: never;
+        post?: never;
+        /**
+         * Delete a virtual machine
+         * @description Removes the machine and its disk for good; billing ends.
+         */
+        delete: operations["deleteVirtualMachine"];
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/api/v1/vms/{id}/stop": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        get?: never;
+        put?: never;
+        /**
+         * Stop a virtual machine
+         * @description Billing ends; the disk is kept.
+         */
+        post: operations["stopVirtualMachine"];
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/api/v1/vms/{id}/start": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        get?: never;
+        put?: never;
+        /**
+         * Start a stopped virtual machine
+         * @description Billing restarts at the current rate. Refused with 402 when the balance is zero or less.
+         */
+        post: operations["startVirtualMachine"];
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/api/v1/vms/{id}/exec": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        get?: never;
+        put?: never;
+        /**
+         * Run a command in a virtual machine
+         * @description Returns the output once the command finishes. 409 vm_not_running when the machine is stopped.
+         */
+        post: operations["execVirtualMachine"];
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/api/v1/vms/{id}/ssh": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        get?: never;
+        put?: never;
+        /**
+         * Connect to a virtual machine with SSH
+         * @description Installs every saved SSH key (and the optional key in the body, which is saved too) on a running machine and returns how to log in. Safe to repeat. 409 vm_not_running when the machine is stopped; 400 no_ssh_keys when no key is saved.
+         */
+        post: operations["connectVirtualMachine"];
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/api/v1/vms/{id}/ports": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        /**
+         * List a virtual machine's open ports
+         * @description Each entry carries a fresh address. 503 vms_urls_unavailable when addresses are not switched on.
+         */
+        get: operations["listVirtualMachinePorts"];
+        put?: never;
+        /**
+         * Open a port of a virtual machine
+         * @description Gives a port of a running machine an address under Claire's domain, https://<label>.<domain>/. Private unless public is true; repeating the call for the same port changes it in place. The service must listen on 0.0.0.0, or pass localhost: true when it listens on localhost only. 409 vm_not_running when the machine is stopped; 409 port_limit after 20 ports.
+         */
+        post: operations["openVirtualMachinePort"];
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/api/v1/vms/{id}/ports/{port}": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        get?: never;
+        put?: never;
+        post?: never;
+        /**
+         * Close a port of a virtual machine
+         * @description The address stops working.
+         */
+        delete: operations["closeVirtualMachinePort"];
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/api/v1/vms/{id}/desktop": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        get?: never;
+        put?: never;
+        /**
+         * Open a virtual machine's desktop
+         * @description Returns an address on Claire's domain that shows the machine's desktop in a browser. Waits while the desktop starts (up to about a minute, then 503 vms_busy). The link carries a token that expires after a few minutes.
+         */
+        post: operations["openVirtualMachineDesktop"];
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/api/v1/ssh-keys": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        /** List SSH keys */
+        get: operations["listSshKeys"];
+        put?: never;
+        /**
+         * Save an SSH key
+         * @description Saves a public key for the owner (ssh-ed25519, ecdsa-sha2-nistp256/384/521, ssh-rsa of 2048 bits or more, or sk-ssh-ed25519@openssh.com), up to 10. Machines receive it the next time they are connected. 400 invalid_ssh_key for anything else, including private keys; 409 ssh_key_exists for a duplicate.
+         */
+        post: operations["addSshKey"];
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/api/v1/ssh-keys/{id}": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        get?: never;
+        put?: never;
+        post?: never;
+        /**
+         * Delete an SSH key
+         * @description Stops the key being installed on machines from now on; machines it was already installed on keep it.
+         */
+        delete: operations["deleteSshKey"];
         options?: never;
         head?: never;
         patch?: never;
@@ -407,7 +714,7 @@ export interface components {
             hasMore: boolean;
         };
         Context: {
-            organization: {
+            project: {
                 /** Format: uuid */
                 id: string;
                 displayName?: string;
@@ -762,7 +1069,7 @@ export interface components {
             projectHolderDistributor: string;
             claireHolderDistributor: string;
             treasury: string;
-            /** @description The organization's linked token when this router launched or adopted it. */
+            /** @description The project's linked token when this router launched or adopted it. */
             launchedToken: string | null;
             /** @description True when this router adopted a token that was launched on pons outside Claire (path 3, 'Bring this token to Claire'). */
             migrated: boolean;
@@ -891,7 +1198,7 @@ export interface components {
                 total: string;
                 /** @description Share of total supply with up to four decimals, or "<0.0001". */
                 percent: string | null;
-                /** @description The organization's published locks of this token. */
+                /** @description The project's published locks of this token. */
                 locks: {
                     id: string;
                     /** @enum {string} */
@@ -950,7 +1257,7 @@ export interface components {
                     expiresAt?: string;
                 } | null;
             } | null;
-            /** @description Connections the organization made inside Claire: an X account linked by OAuth and a public Telegram chat the Claire bot administers. Not on-chain facts. */
+            /** @description Connections the project made inside Claire: an X account linked by OAuth and a public Telegram chat the Claire bot administers. Not on-chain facts. */
             links: {
                 x: {
                     username?: string;
@@ -965,6 +1272,63 @@ export interface components {
                 name?: string;
                 slug?: string;
             } | null;
+        };
+        /** @description A JSON-RPC 2.0 request: jsonrpc, id, method and params. */
+        JsonRpcRequest: {
+            /** @constant */
+            jsonrpc?: "2.0";
+            id?: string | number | null;
+            method: string;
+            params?: unknown[] | Record<string, never>;
+        } & {
+            [key: string]: unknown;
+        };
+        VirtualMachine: {
+            /** Format: uuid */
+            id: string;
+            name: string;
+            /** @enum {unknown} */
+            size: "small" | "default" | "large";
+            vcpu?: number;
+            memoryGb?: number;
+            /** @enum {unknown} */
+            state: "running" | "stopped" | "deleted";
+            /** @description Price per running hour. */
+            hourlyUsd: number;
+            /** @description Running time so far. */
+            uptimeSeconds: number;
+            /** @description Charged so far. */
+            costUsd: number;
+            /** Format: date-time */
+            createdAt: string;
+            /** Format: date-time */
+            startedAt: string;
+            /** Format: date-time */
+            stoppedAt: string | null;
+            /** @description Where the machine accepts SSH once someone has connected; null before. */
+            ssh?: {
+                host?: string;
+                port?: number;
+                user?: string;
+            } | null;
+        };
+        SshKey: {
+            /** Format: uuid */
+            id: string;
+            name: string;
+            /** @description SHA256 fingerprint, as ssh-keygen -l prints it. */
+            fingerprint: string;
+            /** Format: date-time */
+            createdAt: string;
+        };
+        VmPort: {
+            port: number;
+            public: boolean;
+            /**
+             * Format: uri
+             * @description The address on Claire's domain. Private addresses carry a claire_token that expires after a few minutes; opening the link sets a cookie for that address. Public addresses need no sign-in.
+             */
+            url: string;
         };
     };
     responses: {
@@ -1004,7 +1368,7 @@ export interface components {
                 "application/json": components["schemas"]["Error"];
             };
         };
-        /** @description The organization-owned resource was not found. */
+        /** @description The project-owned resource was not found. */
         NotFound: {
             headers: {
                 "X-Request-Id": components["headers"]["RequestId"];
@@ -1030,19 +1394,19 @@ export interface components {
                 "application/json": components["schemas"]["Error"];
             };
         };
-        /** @description Only GET and HEAD are supported. */
+        /** @description The method is not supported for this endpoint; Allow lists the supported methods. */
         MethodNotAllowed: {
             headers: {
                 "X-Request-Id": components["headers"]["RequestId"];
                 /** @description Allowed methods. */
-                Allow?: "GET, HEAD";
+                Allow?: string;
                 [name: string]: unknown;
             };
             content: {
                 "application/json": components["schemas"]["Error"];
             };
         };
-        /** @description Read endpoints do not accept request bodies. */
+        /** @description Context endpoints accept no request body; infrastructure request bodies have a size limit. */
         RequestBodyNotAllowed: {
             headers: {
                 "X-Request-Id": components["headers"]["RequestId"];
@@ -1052,7 +1416,7 @@ export interface components {
                 "application/json": components["schemas"]["Error"];
             };
         };
-        /** @description A shared per-key, per-organization or IP rate limit was exceeded. */
+        /** @description A shared per-key, per-project or IP rate limit was exceeded. */
         RateLimited: {
             headers: {
                 "X-Request-Id": components["headers"]["RequestId"];
@@ -1069,6 +1433,32 @@ export interface components {
         };
         /** @description A required database, Redis or service operation could not be completed. */
         ServiceUnavailable: {
+            headers: {
+                "X-Request-Id": components["headers"]["RequestId"];
+                "RateLimit-Limit": components["headers"]["RateLimitLimit"];
+                "RateLimit-Remaining": components["headers"]["RateLimitRemaining"];
+                "RateLimit-Reset": components["headers"]["RateLimitReset"];
+                [name: string]: unknown;
+            };
+            content: {
+                "application/json": components["schemas"]["Error"];
+            };
+        };
+        /** @description Refused before any work: code insufficient_credits (the credit balance is zero or less) or key_spend_limit (the key reached its monthly spend limit). */
+        PaymentRequired: {
+            headers: {
+                "X-Request-Id": components["headers"]["RequestId"];
+                "RateLimit-Limit": components["headers"]["RateLimitLimit"];
+                "RateLimit-Remaining": components["headers"]["RateLimitRemaining"];
+                "RateLimit-Reset": components["headers"]["RateLimitReset"];
+                [name: string]: unknown;
+            };
+            content: {
+                "application/json": components["schemas"]["Error"];
+            };
+        };
+        /** @description The product is not available right now: code inference_unavailable, rpc_unavailable or vms_unavailable. Nothing is charged. */
+        ProductUnavailable: {
             headers: {
                 "X-Request-Id": components["headers"]["RequestId"];
                 "RateLimit-Limit": components["headers"]["RateLimitLimit"];
@@ -1098,6 +1488,7 @@ export interface components {
         KnowledgeId: string;
         AssetId: string;
         ChatId: string;
+        VmId: string;
     };
     requestBodies: never;
     headers: {
@@ -1140,7 +1531,7 @@ export interface operations {
                         data: components["schemas"]["ContextSource"][];
                         meta: {
                             /** Format: uuid */
-                            organizationId: string;
+                            projectId: string;
                             freshness: components["schemas"]["Freshness"];
                         };
                     };
@@ -1201,7 +1592,7 @@ export interface operations {
                         data: components["schemas"]["ContextSearchResult"];
                         meta: {
                             /** Format: uuid */
-                            organizationId: string;
+                            projectId: string;
                             freshness: components["schemas"]["Freshness"];
                         };
                     };
@@ -1261,7 +1652,7 @@ export interface operations {
                         }[];
                         meta: {
                             /** Format: uuid */
-                            organizationId: string;
+                            projectId: string;
                             freshness: components["schemas"]["Freshness"];
                         };
                         pagination: components["schemas"]["PeoplePagination"];
@@ -1320,7 +1711,7 @@ export interface operations {
                         };
                         meta: {
                             /** Format: uuid */
-                            organizationId: string;
+                            projectId: string;
                             freshness: components["schemas"]["Freshness"];
                         };
                     };
@@ -1374,7 +1765,7 @@ export interface operations {
                         data: components["schemas"]["Context"];
                         meta: {
                             /** Format: uuid */
-                            organizationId: string;
+                            projectId: string;
                             freshness: components["schemas"]["Freshness"];
                         };
                     };
@@ -1436,7 +1827,7 @@ export interface operations {
                         data: components["schemas"]["KnowledgeSummary"][];
                         meta: {
                             /** Format: uuid */
-                            organizationId: string;
+                            projectId: string;
                             freshness: components["schemas"]["Freshness"];
                         };
                         pagination: components["schemas"]["NumberedPagination"];
@@ -1499,7 +1890,7 @@ export interface operations {
                         data: components["schemas"]["KnowledgeItem"];
                         meta: {
                             /** Format: uuid */
-                            organizationId: string;
+                            projectId: string;
                             freshness: components["schemas"]["Freshness"];
                         };
                     };
@@ -1558,7 +1949,7 @@ export interface operations {
                         data: components["schemas"]["Asset"][];
                         meta: {
                             /** Format: uuid */
-                            organizationId: string;
+                            projectId: string;
                             freshness: components["schemas"]["Freshness"];
                         };
                         pagination: components["schemas"]["AssetPagination"];
@@ -1615,7 +2006,7 @@ export interface operations {
                         data: components["schemas"]["Asset"];
                         meta: {
                             /** Format: uuid */
-                            organizationId: string;
+                            projectId: string;
                             freshness: components["schemas"]["Freshness"];
                         };
                     };
@@ -1672,7 +2063,7 @@ export interface operations {
                         data: components["schemas"]["TelegramChat"][];
                         meta: {
                             /** Format: uuid */
-                            organizationId: string;
+                            projectId: string;
                             freshness: components["schemas"]["Freshness"];
                         };
                         pagination: components["schemas"]["NumberedPagination"];
@@ -1735,7 +2126,7 @@ export interface operations {
                         data: components["schemas"]["TelegramMessage"][];
                         meta: {
                             /** Format: uuid */
-                            organizationId: string;
+                            projectId: string;
                             freshness: components["schemas"]["Freshness"];
                         };
                         pagination: components["schemas"]["MessagePagination"];
@@ -1793,7 +2184,7 @@ export interface operations {
                         data: components["schemas"]["XMention"][];
                         meta: {
                             /** Format: uuid */
-                            organizationId: string;
+                            projectId: string;
                             freshness: components["schemas"]["Freshness"];
                         };
                         pagination: components["schemas"]["NumberedPagination"];
@@ -1848,7 +2239,7 @@ export interface operations {
                         data: components["schemas"]["TokenSummary"];
                         meta: {
                             /** Format: uuid */
-                            organizationId: string;
+                            projectId: string;
                             freshness: components["schemas"]["Freshness"];
                         };
                     };
@@ -1902,7 +2293,7 @@ export interface operations {
                         data: components["schemas"]["TokenLock"][];
                         meta: {
                             /** Format: uuid */
-                            organizationId: string;
+                            projectId: string;
                             freshness: components["schemas"]["Freshness"];
                         };
                     };
@@ -1956,7 +2347,7 @@ export interface operations {
                         data: components["schemas"]["FeeRouter"][];
                         meta: {
                             /** Format: uuid */
-                            organizationId: string;
+                            projectId: string;
                             freshness: components["schemas"]["Freshness"];
                         };
                     };
@@ -2013,7 +2404,7 @@ export interface operations {
                         data: components["schemas"]["TokenRound"][];
                         meta: {
                             /** Format: uuid */
-                            organizationId: string;
+                            projectId: string;
                             freshness: components["schemas"]["Freshness"];
                         };
                         pagination: components["schemas"]["NumberedPagination"];
@@ -2068,7 +2459,7 @@ export interface operations {
                         data: null | components["schemas"]["TokenProof"];
                         meta: {
                             /** Format: uuid */
-                            organizationId: string;
+                            projectId: string;
                             freshness: components["schemas"]["Freshness"];
                         };
                     };
@@ -2096,6 +2487,799 @@ export interface operations {
             429: components["responses"]["RateLimited"];
             503: components["responses"]["ServiceUnavailable"];
             504: components["responses"]["RequestTimeout"];
+        };
+    };
+    listModels: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            /** @description Success */
+            200: {
+                headers: {
+                    "X-Request-Id": components["headers"]["RequestId"];
+                    "RateLimit-Limit": components["headers"]["RateLimitLimit"];
+                    "RateLimit-Remaining": components["headers"]["RateLimitRemaining"];
+                    "RateLimit-Reset": components["headers"]["RateLimitReset"];
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": {
+                        /** @constant */
+                        object: "list";
+                        data: {
+                            id: string;
+                            /** @constant */
+                            object: "model";
+                            name?: string;
+                            created?: number;
+                            owned_by?: string;
+                            context_length?: number | null;
+                            pricing: {
+                                /** @description USD per input token. */
+                                prompt?: string;
+                                /** @description USD per output token. */
+                                completion?: string;
+                            };
+                        }[];
+                    };
+                };
+            };
+            400: components["responses"]["BadRequest"];
+            401: components["responses"]["Unauthorized"];
+            402: components["responses"]["PaymentRequired"];
+            403: components["responses"]["Forbidden"];
+            404: components["responses"]["NotFound"];
+            405: components["responses"]["MethodNotAllowed"];
+            413: components["responses"]["RequestBodyNotAllowed"];
+            429: components["responses"]["RateLimited"];
+            503: components["responses"]["ProductUnavailable"];
+        };
+    };
+    createChatCompletion: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        requestBody: {
+            content: {
+                "application/json": {
+                    model: string;
+                    messages: {
+                        [key: string]: unknown;
+                    }[];
+                    stream?: boolean;
+                    max_tokens?: number | null;
+                    max_completion_tokens?: number | null;
+                } & {
+                    [key: string]: unknown;
+                };
+            };
+        };
+        responses: {
+            /** @description An OpenAI chat completion object, or text/event-stream chunks when stream is true. */
+            200: {
+                headers: {
+                    "X-Request-Id": components["headers"]["RequestId"];
+                    "RateLimit-Limit": components["headers"]["RateLimitLimit"];
+                    "RateLimit-Remaining": components["headers"]["RateLimitRemaining"];
+                    "RateLimit-Reset": components["headers"]["RateLimitReset"];
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": {
+                        [key: string]: unknown;
+                    };
+                    "text/event-stream": string;
+                };
+            };
+            400: components["responses"]["BadRequest"];
+            401: components["responses"]["Unauthorized"];
+            402: components["responses"]["PaymentRequired"];
+            403: components["responses"]["Forbidden"];
+            404: components["responses"]["NotFound"];
+            405: components["responses"]["MethodNotAllowed"];
+            413: components["responses"]["RequestBodyNotAllowed"];
+            429: components["responses"]["RateLimited"];
+            503: components["responses"]["ProductUnavailable"];
+        };
+    };
+    robinhoodRpc: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        requestBody: {
+            content: {
+                "application/json": components["schemas"]["JsonRpcRequest"] | components["schemas"]["JsonRpcRequest"][];
+            };
+        };
+        responses: {
+            /** @description Success */
+            200: {
+                headers: {
+                    "X-Request-Id": components["headers"]["RequestId"];
+                    "RateLimit-Limit": components["headers"]["RateLimitLimit"];
+                    "RateLimit-Remaining": components["headers"]["RateLimitRemaining"];
+                    "RateLimit-Reset": components["headers"]["RateLimitReset"];
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": Record<string, never> | unknown[];
+                };
+            };
+            400: components["responses"]["BadRequest"];
+            401: components["responses"]["Unauthorized"];
+            402: components["responses"]["PaymentRequired"];
+            403: components["responses"]["Forbidden"];
+            404: components["responses"]["NotFound"];
+            405: components["responses"]["MethodNotAllowed"];
+            413: components["responses"]["RequestBodyNotAllowed"];
+            429: components["responses"]["RateLimited"];
+            503: components["responses"]["ProductUnavailable"];
+        };
+    };
+    robinhoodRpcKeyInPath: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path: {
+                /** @description A Claire key with the rpc scope. */
+                key: string;
+            };
+            cookie?: never;
+        };
+        requestBody: {
+            content: {
+                "application/json": components["schemas"]["JsonRpcRequest"] | components["schemas"]["JsonRpcRequest"][];
+            };
+        };
+        responses: {
+            /** @description Success */
+            200: {
+                headers: {
+                    "X-Request-Id": components["headers"]["RequestId"];
+                    "RateLimit-Limit": components["headers"]["RateLimitLimit"];
+                    "RateLimit-Remaining": components["headers"]["RateLimitRemaining"];
+                    "RateLimit-Reset": components["headers"]["RateLimitReset"];
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": Record<string, never> | unknown[];
+                };
+            };
+            400: components["responses"]["BadRequest"];
+            401: components["responses"]["Unauthorized"];
+            402: components["responses"]["PaymentRequired"];
+            403: components["responses"]["Forbidden"];
+            404: components["responses"]["NotFound"];
+            405: components["responses"]["MethodNotAllowed"];
+            413: components["responses"]["RequestBodyNotAllowed"];
+            429: components["responses"]["RateLimited"];
+            503: components["responses"]["ProductUnavailable"];
+        };
+    };
+    listVirtualMachines: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            /** @description Success */
+            200: {
+                headers: {
+                    "X-Request-Id": components["headers"]["RequestId"];
+                    "RateLimit-Limit": components["headers"]["RateLimitLimit"];
+                    "RateLimit-Remaining": components["headers"]["RateLimitRemaining"];
+                    "RateLimit-Reset": components["headers"]["RateLimitReset"];
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": {
+                        data?: components["schemas"]["VirtualMachine"][];
+                    };
+                };
+            };
+            400: components["responses"]["BadRequest"];
+            401: components["responses"]["Unauthorized"];
+            402: components["responses"]["PaymentRequired"];
+            403: components["responses"]["Forbidden"];
+            404: components["responses"]["NotFound"];
+            405: components["responses"]["MethodNotAllowed"];
+            413: components["responses"]["RequestBodyNotAllowed"];
+            429: components["responses"]["RateLimited"];
+            503: components["responses"]["ProductUnavailable"];
+        };
+    };
+    createVirtualMachine: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        requestBody: {
+            content: {
+                "application/json": {
+                    name?: string;
+                    /**
+                     * @default default
+                     * @enum {unknown}
+                     */
+                    size?: "small" | "default" | "large";
+                };
+            };
+        };
+        responses: {
+            /** @description The new machine. */
+            201: {
+                headers: {
+                    "X-Request-Id": components["headers"]["RequestId"];
+                    "RateLimit-Limit": components["headers"]["RateLimitLimit"];
+                    "RateLimit-Remaining": components["headers"]["RateLimitRemaining"];
+                    "RateLimit-Reset": components["headers"]["RateLimitReset"];
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": {
+                        data?: components["schemas"]["VirtualMachine"];
+                    };
+                };
+            };
+            400: components["responses"]["BadRequest"];
+            401: components["responses"]["Unauthorized"];
+            402: components["responses"]["PaymentRequired"];
+            403: components["responses"]["Forbidden"];
+            404: components["responses"]["NotFound"];
+            405: components["responses"]["MethodNotAllowed"];
+            413: components["responses"]["RequestBodyNotAllowed"];
+            429: components["responses"]["RateLimited"];
+            503: components["responses"]["ProductUnavailable"];
+        };
+    };
+    getVirtualMachine: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path: {
+                id: components["parameters"]["VmId"];
+            };
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            /** @description Success */
+            200: {
+                headers: {
+                    "X-Request-Id": components["headers"]["RequestId"];
+                    "RateLimit-Limit": components["headers"]["RateLimitLimit"];
+                    "RateLimit-Remaining": components["headers"]["RateLimitRemaining"];
+                    "RateLimit-Reset": components["headers"]["RateLimitReset"];
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": {
+                        data?: components["schemas"]["VirtualMachine"];
+                    };
+                };
+            };
+            400: components["responses"]["BadRequest"];
+            401: components["responses"]["Unauthorized"];
+            402: components["responses"]["PaymentRequired"];
+            403: components["responses"]["Forbidden"];
+            404: components["responses"]["NotFound"];
+            405: components["responses"]["MethodNotAllowed"];
+            413: components["responses"]["RequestBodyNotAllowed"];
+            429: components["responses"]["RateLimited"];
+            503: components["responses"]["ProductUnavailable"];
+        };
+    };
+    deleteVirtualMachine: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path: {
+                id: components["parameters"]["VmId"];
+            };
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            /** @description Success */
+            200: {
+                headers: {
+                    "X-Request-Id": components["headers"]["RequestId"];
+                    "RateLimit-Limit": components["headers"]["RateLimitLimit"];
+                    "RateLimit-Remaining": components["headers"]["RateLimitRemaining"];
+                    "RateLimit-Reset": components["headers"]["RateLimitReset"];
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": {
+                        data?: components["schemas"]["VirtualMachine"];
+                    };
+                };
+            };
+            400: components["responses"]["BadRequest"];
+            401: components["responses"]["Unauthorized"];
+            402: components["responses"]["PaymentRequired"];
+            403: components["responses"]["Forbidden"];
+            404: components["responses"]["NotFound"];
+            405: components["responses"]["MethodNotAllowed"];
+            413: components["responses"]["RequestBodyNotAllowed"];
+            429: components["responses"]["RateLimited"];
+            503: components["responses"]["ProductUnavailable"];
+        };
+    };
+    stopVirtualMachine: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path: {
+                id: components["parameters"]["VmId"];
+            };
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            /** @description Success */
+            200: {
+                headers: {
+                    "X-Request-Id": components["headers"]["RequestId"];
+                    "RateLimit-Limit": components["headers"]["RateLimitLimit"];
+                    "RateLimit-Remaining": components["headers"]["RateLimitRemaining"];
+                    "RateLimit-Reset": components["headers"]["RateLimitReset"];
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": {
+                        data?: components["schemas"]["VirtualMachine"];
+                    };
+                };
+            };
+            400: components["responses"]["BadRequest"];
+            401: components["responses"]["Unauthorized"];
+            402: components["responses"]["PaymentRequired"];
+            403: components["responses"]["Forbidden"];
+            404: components["responses"]["NotFound"];
+            405: components["responses"]["MethodNotAllowed"];
+            413: components["responses"]["RequestBodyNotAllowed"];
+            429: components["responses"]["RateLimited"];
+            503: components["responses"]["ProductUnavailable"];
+        };
+    };
+    startVirtualMachine: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path: {
+                id: components["parameters"]["VmId"];
+            };
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            /** @description Success */
+            200: {
+                headers: {
+                    "X-Request-Id": components["headers"]["RequestId"];
+                    "RateLimit-Limit": components["headers"]["RateLimitLimit"];
+                    "RateLimit-Remaining": components["headers"]["RateLimitRemaining"];
+                    "RateLimit-Reset": components["headers"]["RateLimitReset"];
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": {
+                        data?: components["schemas"]["VirtualMachine"];
+                    };
+                };
+            };
+            400: components["responses"]["BadRequest"];
+            401: components["responses"]["Unauthorized"];
+            402: components["responses"]["PaymentRequired"];
+            403: components["responses"]["Forbidden"];
+            404: components["responses"]["NotFound"];
+            405: components["responses"]["MethodNotAllowed"];
+            413: components["responses"]["RequestBodyNotAllowed"];
+            429: components["responses"]["RateLimited"];
+            503: components["responses"]["ProductUnavailable"];
+        };
+    };
+    execVirtualMachine: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path: {
+                id: components["parameters"]["VmId"];
+            };
+            cookie?: never;
+        };
+        requestBody: {
+            content: {
+                "application/json": {
+                    command: string;
+                    cwd?: string;
+                    /** @default 30 */
+                    timeoutSeconds?: number;
+                };
+            };
+        };
+        responses: {
+            /** @description Success */
+            200: {
+                headers: {
+                    "X-Request-Id": components["headers"]["RequestId"];
+                    "RateLimit-Limit": components["headers"]["RateLimitLimit"];
+                    "RateLimit-Remaining": components["headers"]["RateLimitRemaining"];
+                    "RateLimit-Reset": components["headers"]["RateLimitReset"];
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": {
+                        data?: {
+                            exitCode?: number | null;
+                            stdout?: string;
+                            stderr?: string;
+                            timedOut?: boolean;
+                            truncated?: boolean;
+                        };
+                    };
+                };
+            };
+            400: components["responses"]["BadRequest"];
+            401: components["responses"]["Unauthorized"];
+            402: components["responses"]["PaymentRequired"];
+            403: components["responses"]["Forbidden"];
+            404: components["responses"]["NotFound"];
+            405: components["responses"]["MethodNotAllowed"];
+            413: components["responses"]["RequestBodyNotAllowed"];
+            429: components["responses"]["RateLimited"];
+            503: components["responses"]["ProductUnavailable"];
+        };
+    };
+    connectVirtualMachine: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path: {
+                id: components["parameters"]["VmId"];
+            };
+            cookie?: never;
+        };
+        requestBody?: {
+            content: {
+                "application/json": {
+                    /** @description An OpenSSH public key, one line. */
+                    key?: string;
+                };
+            };
+        };
+        responses: {
+            /** @description Success */
+            200: {
+                headers: {
+                    "X-Request-Id": components["headers"]["RequestId"];
+                    "RateLimit-Limit": components["headers"]["RateLimitLimit"];
+                    "RateLimit-Remaining": components["headers"]["RateLimitRemaining"];
+                    "RateLimit-Reset": components["headers"]["RateLimitReset"];
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": {
+                        data?: {
+                            host?: string;
+                            port?: number;
+                            user?: string;
+                            /** @description The ssh command to run. */
+                            command?: string;
+                            /** @description A line for ~/.ssh/known_hosts that pins the machine's host key. */
+                            knownHostsLine?: string | null;
+                        };
+                    };
+                };
+            };
+            400: components["responses"]["BadRequest"];
+            401: components["responses"]["Unauthorized"];
+            402: components["responses"]["PaymentRequired"];
+            403: components["responses"]["Forbidden"];
+            404: components["responses"]["NotFound"];
+            405: components["responses"]["MethodNotAllowed"];
+            413: components["responses"]["RequestBodyNotAllowed"];
+            429: components["responses"]["RateLimited"];
+            503: components["responses"]["ProductUnavailable"];
+        };
+    };
+    listVirtualMachinePorts: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path: {
+                id: components["parameters"]["VmId"];
+            };
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            /** @description Success */
+            200: {
+                headers: {
+                    "X-Request-Id": components["headers"]["RequestId"];
+                    "RateLimit-Limit": components["headers"]["RateLimitLimit"];
+                    "RateLimit-Remaining": components["headers"]["RateLimitRemaining"];
+                    "RateLimit-Reset": components["headers"]["RateLimitReset"];
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": {
+                        data?: components["schemas"]["VmPort"][];
+                    };
+                };
+            };
+            400: components["responses"]["BadRequest"];
+            401: components["responses"]["Unauthorized"];
+            402: components["responses"]["PaymentRequired"];
+            403: components["responses"]["Forbidden"];
+            404: components["responses"]["NotFound"];
+            405: components["responses"]["MethodNotAllowed"];
+            413: components["responses"]["RequestBodyNotAllowed"];
+            429: components["responses"]["RateLimited"];
+            503: components["responses"]["ProductUnavailable"];
+        };
+    };
+    openVirtualMachinePort: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path: {
+                id: components["parameters"]["VmId"];
+            };
+            cookie?: never;
+        };
+        requestBody: {
+            content: {
+                "application/json": {
+                    port: number;
+                    /** @default false */
+                    public?: boolean;
+                    /** @description The service listens on localhost only. */
+                    localhost?: boolean;
+                };
+            };
+        };
+        responses: {
+            /** @description The port's address. */
+            201: {
+                headers: {
+                    "X-Request-Id": components["headers"]["RequestId"];
+                    "RateLimit-Limit": components["headers"]["RateLimitLimit"];
+                    "RateLimit-Remaining": components["headers"]["RateLimitRemaining"];
+                    "RateLimit-Reset": components["headers"]["RateLimitReset"];
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": {
+                        data?: components["schemas"]["VmPort"];
+                    };
+                };
+            };
+            400: components["responses"]["BadRequest"];
+            401: components["responses"]["Unauthorized"];
+            402: components["responses"]["PaymentRequired"];
+            403: components["responses"]["Forbidden"];
+            404: components["responses"]["NotFound"];
+            405: components["responses"]["MethodNotAllowed"];
+            413: components["responses"]["RequestBodyNotAllowed"];
+            429: components["responses"]["RateLimited"];
+            503: components["responses"]["ProductUnavailable"];
+        };
+    };
+    closeVirtualMachinePort: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path: {
+                id: components["parameters"]["VmId"];
+                port: number;
+            };
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            /** @description Success */
+            200: {
+                headers: {
+                    "X-Request-Id": components["headers"]["RequestId"];
+                    "RateLimit-Limit": components["headers"]["RateLimitLimit"];
+                    "RateLimit-Remaining": components["headers"]["RateLimitRemaining"];
+                    "RateLimit-Reset": components["headers"]["RateLimitReset"];
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": {
+                        data?: {
+                            port?: number;
+                        };
+                    };
+                };
+            };
+            400: components["responses"]["BadRequest"];
+            401: components["responses"]["Unauthorized"];
+            402: components["responses"]["PaymentRequired"];
+            403: components["responses"]["Forbidden"];
+            404: components["responses"]["NotFound"];
+            405: components["responses"]["MethodNotAllowed"];
+            413: components["responses"]["RequestBodyNotAllowed"];
+            429: components["responses"]["RateLimited"];
+            503: components["responses"]["ProductUnavailable"];
+        };
+    };
+    openVirtualMachineDesktop: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path: {
+                id: components["parameters"]["VmId"];
+            };
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            /** @description Success */
+            200: {
+                headers: {
+                    "X-Request-Id": components["headers"]["RequestId"];
+                    "RateLimit-Limit": components["headers"]["RateLimitLimit"];
+                    "RateLimit-Remaining": components["headers"]["RateLimitRemaining"];
+                    "RateLimit-Reset": components["headers"]["RateLimitReset"];
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": {
+                        data?: {
+                            /** Format: uri */
+                            url?: string;
+                        };
+                    };
+                };
+            };
+            400: components["responses"]["BadRequest"];
+            401: components["responses"]["Unauthorized"];
+            402: components["responses"]["PaymentRequired"];
+            403: components["responses"]["Forbidden"];
+            404: components["responses"]["NotFound"];
+            405: components["responses"]["MethodNotAllowed"];
+            413: components["responses"]["RequestBodyNotAllowed"];
+            429: components["responses"]["RateLimited"];
+            503: components["responses"]["ProductUnavailable"];
+        };
+    };
+    listSshKeys: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            /** @description Success */
+            200: {
+                headers: {
+                    "X-Request-Id": components["headers"]["RequestId"];
+                    "RateLimit-Limit": components["headers"]["RateLimitLimit"];
+                    "RateLimit-Remaining": components["headers"]["RateLimitRemaining"];
+                    "RateLimit-Reset": components["headers"]["RateLimitReset"];
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": {
+                        data?: components["schemas"]["SshKey"][];
+                    };
+                };
+            };
+            400: components["responses"]["BadRequest"];
+            401: components["responses"]["Unauthorized"];
+            402: components["responses"]["PaymentRequired"];
+            403: components["responses"]["Forbidden"];
+            404: components["responses"]["NotFound"];
+            405: components["responses"]["MethodNotAllowed"];
+            413: components["responses"]["RequestBodyNotAllowed"];
+            429: components["responses"]["RateLimited"];
+            503: components["responses"]["ProductUnavailable"];
+        };
+    };
+    addSshKey: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        requestBody: {
+            content: {
+                "application/json": {
+                    name: string;
+                    /** @description An OpenSSH public key, one line. */
+                    key: string;
+                };
+            };
+        };
+        responses: {
+            /** @description The saved key. */
+            201: {
+                headers: {
+                    "X-Request-Id": components["headers"]["RequestId"];
+                    "RateLimit-Limit": components["headers"]["RateLimitLimit"];
+                    "RateLimit-Remaining": components["headers"]["RateLimitRemaining"];
+                    "RateLimit-Reset": components["headers"]["RateLimitReset"];
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": {
+                        data?: components["schemas"]["SshKey"];
+                    };
+                };
+            };
+            400: components["responses"]["BadRequest"];
+            401: components["responses"]["Unauthorized"];
+            402: components["responses"]["PaymentRequired"];
+            403: components["responses"]["Forbidden"];
+            404: components["responses"]["NotFound"];
+            405: components["responses"]["MethodNotAllowed"];
+            413: components["responses"]["RequestBodyNotAllowed"];
+            429: components["responses"]["RateLimited"];
+            503: components["responses"]["ProductUnavailable"];
+        };
+    };
+    deleteSshKey: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path: {
+                id: string;
+            };
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            /** @description Success */
+            200: {
+                headers: {
+                    "X-Request-Id": components["headers"]["RequestId"];
+                    "RateLimit-Limit": components["headers"]["RateLimitLimit"];
+                    "RateLimit-Remaining": components["headers"]["RateLimitRemaining"];
+                    "RateLimit-Reset": components["headers"]["RateLimitReset"];
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": {
+                        data?: {
+                            /** Format: uuid */
+                            id?: string;
+                        };
+                    };
+                };
+            };
+            400: components["responses"]["BadRequest"];
+            401: components["responses"]["Unauthorized"];
+            402: components["responses"]["PaymentRequired"];
+            403: components["responses"]["Forbidden"];
+            404: components["responses"]["NotFound"];
+            405: components["responses"]["MethodNotAllowed"];
+            413: components["responses"]["RequestBodyNotAllowed"];
+            429: components["responses"]["RateLimited"];
+            503: components["responses"]["ProductUnavailable"];
         };
     };
 }

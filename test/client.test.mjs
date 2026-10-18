@@ -4,7 +4,7 @@ import { once } from 'node:events';
 import { test } from 'node:test';
 import { Claire, ClaireAPIError, ClaireResponseError } from '../dist/index.js';
 
-const meta = { organizationId: '123e4567-e89b-12d3-a456-426614174000', freshness: { source: 'database', updatedAt: null, status: 'stale', note: 'Persisted only' } };
+const meta = { projectId: '123e4567-e89b-12d3-a456-426614174000', freshness: { source: 'database', updatedAt: null, status: 'stale', note: 'Persisted only' } };
 const page = { page: 2, pageSize: 20, total: 45, totalPages: 3, hasNextPage: true };
 const envelope = (data, pagination) => ({ data, meta, ...(pagination === undefined ? {} : { pagination }) });
 
@@ -37,7 +37,7 @@ test('routes all read resources, preserves exact query values and the server env
     } else if (path === '/api/v1/assets') {
       json(res, envelope([], { ...page, folderId: 'folder-1', folderName: 'Design' }));
     } else if (path === '/api/v1/context') {
-      json(res, envelope({ organization: { id: meta.organizationId }, grantedScopes: ['context:read'], connections: {}, sources: [] }));
+      json(res, envelope({ project: { id: meta.projectId }, grantedScopes: ['context:read'], connections: {}, sources: [] }));
     } else if (path.startsWith('/api/v1/knowledge/')) {
       json(res, envelope({ id: 'note:alpha/beta', content: 'part', contentRange: { offset: 0, length: 4, total: 9, nextOffset: 4 } }));
     } else if (path === '/api/v1/knowledge' || path === '/api/v1/telegram/chats' || path === '/api/v1/x/mentions') {
@@ -78,7 +78,7 @@ test('routes all read resources, preserves exact query values and the server env
     assert.equal(req.headers.authorization, 'Bearer test-secret');
     assert.equal(req.headers.accept, 'application/json');
   }
-  assert.equal(context.data.organization.id, meta.organizationId);
+  assert.equal(context.data.project.id, meta.projectId);
   assert.deepEqual(knowledge.pagination, page);
   assert.equal(item.data.contentRange.nextOffset, 4);
   assert.equal(assets.pagination.folderName, 'Design');
@@ -160,7 +160,7 @@ test('invalid success JSON and missing envelope fields produce response errors',
     calls++;
     res.setHeader('x-request-id', `bad-${calls}`);
     if (calls === 1) res.writeHead(200, { 'content-type': 'application/json' }).end('{broken');
-    else if (calls === 2) json(res, { data: {}, meta: { organizationId: 'org' } });
+    else if (calls === 2) json(res, { data: {}, meta: { projectId: 'proj' } });
     else json(res, { data: null, meta });
   });
   for (let n = 1; n <= 2; n++) {

@@ -46,7 +46,7 @@ const server = createServer((req, res) => {
   res.end(JSON.stringify({
     data: { connected: false, token: null, index: null, holders: null, latestFees: null, latestTradeAt: null,
       sources: { transfers: { updatedAt: null, status: 'unavailable' }, fees: { updatedAt: null, status: 'unavailable' } } },
-    meta: { organizationId: '00000000-0000-4000-8000-000000000001', freshness: { source: 'database', updatedAt: null, status: 'unavailable' } }
+    meta: { projectId: '00000000-0000-4000-8000-000000000001', freshness: { source: 'database', updatedAt: null, status: 'unavailable' } }
   }));
 });
 server.listen(0, '127.0.0.1');
