@@ -328,7 +328,7 @@ export interface paths {
         };
         /**
          * Read the token's Claire Proof
-         * @description Returns the facts of the public Claire Proof card for the organization's linked token, read from the chain and Claire's records: launch and fee routing, share of supply held by Claire locks, opening-buy lock, revenue and rounds, fee-recipient integrity and connections. Unlike the other token reads it makes RPC requests; data is null when no token is linked.
+         * @description Returns the Claire Proof facts for the organization's linked token, as shown on the project's public site, read from the chain and Claire's records: launch and fee routing, share of supply held by Claire locks, opening-buy lock, revenue and rounds, fee-recipient integrity and connections. Unlike the other token reads it makes RPC requests; data is null when no token is linked.
          */
         get: operations["getTokenProof"];
         put?: never;
@@ -826,13 +826,13 @@ export interface components {
             /** Format: date-time */
             publishedAt: string;
         };
-        /** @description The facts behind the public Claire Proof card (the page at `url`). Amounts are raw decimal strings in the token's, quote's or asset's own units. On-chain figures were read at `block`; `links` and published locks are Claire's own records, not chain facts. */
+        /** @description The Claire Proof facts shown on the project's public site (opened by `url`). Amounts are raw decimal strings in the token's, quote's or asset's own units. On-chain figures were read at `block`; `links` and published locks are Claire's own records, not chain facts. */
         TokenProof: {
             chainId: number;
             network: string;
             /** @description Block explorer origin; null on local forks. */
             explorer: string | null;
-            /** @description The public proof page. Append /badge.svg for the embeddable badge. */
+            /** @description The token's permalink (`/proof/<chainId>/<token>`), which opens the project's public site. Append /badge.svg for the embeddable badge. */
             url: string;
             token: {
                 address: string;
