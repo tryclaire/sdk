@@ -29,7 +29,7 @@ async function consume() {
   const knowledge = await sdk.knowledge.list({ q: 'C++', archived: false, kind: 'note', visibility: 'team', page: 1 });
   const next: boolean = knowledge.pagination.hasNextPage;
   const summaryKind: 'source' | 'note' | undefined = knowledge.data[0]?.kind;
-  const item = await sdk.knowledge.get('docs:abc', { offset: 0, limit: 100 });
+  const item = await sdk.knowledge.get('note:abc', { offset: 0, limit: 100 });
   const nextOffset: number | null = item.data.contentRange.nextOffset;
 
   const assets = await sdk.assets.list({ folderId: 'folder', page: 2 });

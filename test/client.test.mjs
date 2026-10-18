@@ -39,7 +39,7 @@ test('routes all read resources, preserves exact query values and the server env
     } else if (path === '/api/v1/context') {
       json(res, envelope({ organization: { id: meta.organizationId }, grantedScopes: ['context:read'], connections: {}, sources: [] }));
     } else if (path.startsWith('/api/v1/knowledge/')) {
-      json(res, envelope({ id: 'docs:alpha/beta', content: 'part', contentRange: { offset: 0, length: 4, total: 9, nextOffset: 4 } }));
+      json(res, envelope({ id: 'note:alpha/beta', content: 'part', contentRange: { offset: 0, length: 4, total: 9, nextOffset: 4 } }));
     } else if (path === '/api/v1/knowledge' || path === '/api/v1/telegram/chats' || path === '/api/v1/x/mentions') {
       json(res, envelope([], page));
     } else if (path.startsWith('/api/v1/assets/')) {
@@ -51,7 +51,7 @@ test('routes all read resources, preserves exact query values and the server env
   const sdk = client(baseUrl);
   const context = await sdk.context.get();
   const knowledge = await sdk.knowledge.list({ q: 'C++ & tea?', archived: false, page: 2, kind: 'note', visibility: 'team' });
-  const item = await sdk.knowledge.get('docs:alpha/beta', { offset: 0, limit: 4 });
+  const item = await sdk.knowledge.get('note:alpha/beta', { offset: 0, limit: 4 });
   const assets = await sdk.assets.list({ folderId: 'folder-1', page: 2 });
   const asset = await sdk.assets.get('asset-1');
   const chats = await sdk.telegram.chats.list({ page: 2 });
@@ -65,7 +65,7 @@ test('routes all read resources, preserves exact query values and the server env
   }), [
     ['/api/v1/context', {}],
     ['/api/v1/knowledge', { q: 'C++ & tea?', archived: 'false', page: '2', kind: 'note', visibility: 'team' }],
-    ['/api/v1/knowledge/docs%3Aalpha%2Fbeta', { offset: '0', limit: '4' }],
+    ['/api/v1/knowledge/note%3Aalpha%2Fbeta', { offset: '0', limit: '4' }],
     ['/api/v1/assets', { folderId: 'folder-1', page: '2' }],
     ['/api/v1/assets/asset-1', {}],
     ['/api/v1/telegram/chats', { page: '2' }],

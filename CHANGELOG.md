@@ -16,7 +16,8 @@ Tokens already live on pons can be brought to Claire (`ClaireFeeRouter.adopt`, w
 - The canonical round manifest format is `version: 1`: `parseRoundManifest` and `verifyRound` accept version 1 only.
 - API client: fee routers carry `pendingPayee`, `payeeChangeAt` and `payeeChanges` (the holder share and payee are the current values, with their confirmed history) and `token.proof.get()` reports `launch.pendingPayee`; the bundled OpenAPI snapshot and generated types are resynced.
 - API client: fee routers carry `migrated` and `migration` (adoption time, migration fee and the pre-migration fees paid to the creator uncharged), and `token.proof.get()` reports `launch.migrated`. The bundled OpenAPI snapshot and generated types are updated.
-- API client: `token.proof.get()`'s `url` is now the token's permalink (`/proof/<chainId>/<token>`), which opens the project's public site where the same facts are shown; `url + "/badge.svg"` is still the badge. Descriptions in the OpenAPI snapshot and generated types are updated.
+- API client: `token.proof.get()`'s `url` is the token's public Claire Proof page (`/proof/<chainId>/<token>`); `url + "/badge.svg"` is the badge. Breaking: `links.domain` and `project.url` are removed.
+- API client, breaking: Knowledge no longer has a `docs` source. The `docs:` ID prefix, the `docs` source and kind values, `connections.knowledge.docs` and the `markdown` content format are removed; knowledge content is plain text. The bundled OpenAPI snapshot and generated types are updated.
 
 ## 0.6.0
 
