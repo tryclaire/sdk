@@ -328,7 +328,7 @@ export interface paths {
         };
         /**
          * Read the token's Claire Proof
-         * @description Returns the Claire Proof facts for the organization's linked token, as shown on the project's public site, read from the chain and Claire's records: launch and fee routing, share of supply held by Claire locks, opening-buy lock, revenue and rounds, fee-recipient integrity and connections. Unlike the other token reads it makes RPC requests; data is null when no token is linked.
+         * @description Returns the Claire Proof facts for the organization's linked token, as shown on the token's public proof page, read from the chain and Claire's records: launch and fee routing, share of supply held by Claire locks, opening-buy lock, revenue and rounds, fee-recipient integrity and connections. Unlike the other token reads it makes RPC requests; data is null when no token is linked.
          */
         get: operations["getTokenProof"];
         put?: never;
@@ -379,7 +379,7 @@ export interface components {
             id: string;
             label: string;
             /** @enum {string} */
-            kind: "docs" | "notes" | "assets" | "profile" | "token" | "x" | "telegram";
+            kind: "notes" | "assets" | "profile" | "token" | "x" | "telegram";
             included: boolean;
             external: boolean;
             /** @enum {string} */
@@ -423,7 +423,6 @@ export interface components {
             connections: {
                 knowledge?: {
                     available: boolean;
-                    docs: components["schemas"]["ConnectionState"] | null;
                 };
                 assets?: {
                     available: boolean;
@@ -458,7 +457,7 @@ export interface components {
             /** @enum {string} */
             kind: "source" | "note";
             /** @enum {string} */
-            source: "docs" | "assets" | "chain" | "profile" | "team" | "answer";
+            source: "assets" | "chain" | "profile" | "team" | "answer";
             preview: string;
             /** @enum {string} */
             visibility: "public" | "team";
@@ -475,7 +474,7 @@ export interface components {
         KnowledgeItem: components["schemas"]["KnowledgeSummary"] & {
             content: string;
             /** @enum {string} */
-            contentFormat: "markdown" | "plain_text";
+            contentFormat: "plain_text";
             contentRange: {
                 offset: number;
                 length: number;
@@ -826,13 +825,13 @@ export interface components {
             /** Format: date-time */
             publishedAt: string;
         };
-        /** @description The Claire Proof facts shown on the project's public site (opened by `url`). Amounts are raw decimal strings in the token's, quote's or asset's own units. On-chain figures were read at `block`; `links` and published locks are Claire's own records, not chain facts. */
+        /** @description The Claire Proof facts shown on the token's public proof page (opened by `url`). Amounts are raw decimal strings in the token's, quote's or asset's own units. On-chain figures were read at `block`; `links` and published locks are Claire's own records, not chain facts. */
         TokenProof: {
             chainId: number;
             network: string;
             /** @description Block explorer origin; null on local forks. */
             explorer: string | null;
-            /** @description The token's permalink (`/proof/<chainId>/<token>`), which opens the project's public site. Append /badge.svg for the embeddable badge. */
+            /** @description The token's permalink (`/proof/<chainId>/<token>`), its public Claire Proof page. Append /badge.svg for the embeddable badge. */
             url: string;
             token: {
                 address: string;
@@ -951,7 +950,7 @@ export interface components {
                     expiresAt?: string;
                 } | null;
             } | null;
-            /** @description Connections the organization made inside Claire: an X account linked by OAuth, a public Telegram chat the Claire bot administers, a custom domain Claire verified. Not on-chain facts. */
+            /** @description Connections the organization made inside Claire: an X account linked by OAuth and a public Telegram chat the Claire bot administers. Not on-chain facts. */
             links: {
                 x: {
                     username?: string;
@@ -961,15 +960,10 @@ export interface components {
                     title?: string;
                     url?: string;
                 } | null;
-                domain: {
-                    hostname?: string;
-                    url?: string;
-                } | null;
             };
             project: {
                 name?: string;
                 slug?: string;
-                url?: string;
             } | null;
         };
     };

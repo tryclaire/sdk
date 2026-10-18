@@ -2191,7 +2191,7 @@
           "Token"
         ],
         "summary": "Read the token's Claire Proof",
-        "description": "Returns the Claire Proof facts for the organization's linked token, as shown on the project's public site, read from the chain and Claire's records: launch and fee routing, share of supply held by Claire locks, opening-buy lock, revenue and rounds, fee-recipient integrity and connections. Unlike the other token reads it makes RPC requests; data is null when no token is linked.",
+        "description": "Returns the Claire Proof facts for the organization's linked token, as shown on the token's public proof page, read from the chain and Claire's records: launch and fee routing, share of supply held by Claire locks, opening-buy lock, revenue and rounds, fee-recipient integrity and connections. Unlike the other token reads it makes RPC requests; data is null when no token is linked.",
         "operationId": "getTokenProof",
         "x-required-scope": "token:read",
         "parameters": [],
@@ -2374,7 +2374,7 @@
         "description": "Stable kind-prefixed knowledge ID returned by the list endpoint.",
         "schema": {
           "type": "string",
-          "pattern": "^(?:(?:docs|assets|profile|note):[0-9a-fA-F]{8}(?:-[0-9a-fA-F]{4}){3}-[0-9a-fA-F]{12}|chain:0x[0-9a-f]{40})$"
+          "pattern": "^(?:(?:assets|profile|note):[0-9a-fA-F]{8}(?:-[0-9a-fA-F]{4}){3}-[0-9a-fA-F]{12}|chain:0x[0-9a-f]{40})$"
         }
       },
       "AssetId": {
@@ -2775,7 +2775,6 @@
           "kind": {
             "type": "string",
             "enum": [
-              "docs",
               "notes",
               "assets",
               "profile",
@@ -2955,22 +2954,11 @@
               "knowledge": {
                 "type": "object",
                 "required": [
-                  "available",
-                  "docs"
+                  "available"
                 ],
                 "properties": {
                   "available": {
                     "type": "boolean"
-                  },
-                  "docs": {
-                    "anyOf": [
-                      {
-                        "$ref": "#/components/schemas/ConnectionState"
-                      },
-                      {
-                        "type": "null"
-                      }
-                    ]
                   }
                 }
               },
@@ -3145,7 +3133,6 @@
           "source": {
             "type": "string",
             "enum": [
-              "docs",
               "assets",
               "chain",
               "profile",
@@ -3215,7 +3202,6 @@
               "contentFormat": {
                 "type": "string",
                 "enum": [
-                  "markdown",
                   "plain_text"
                 ]
               },
@@ -4707,7 +4693,7 @@
           "links",
           "project"
         ],
-        "description": "The Claire Proof facts shown on the project's public site (opened by `url`). Amounts are raw decimal strings in the token's, quote's or asset's own units. On-chain figures were read at `block`; `links` and published locks are Claire's own records, not chain facts.",
+        "description": "The Claire Proof facts shown on the token's public proof page (opened by `url`). Amounts are raw decimal strings in the token's, quote's or asset's own units. On-chain figures were read at `block`; `links` and published locks are Claire's own records, not chain facts.",
         "properties": {
           "chainId": {
             "type": "integer"
@@ -4724,7 +4710,7 @@
           },
           "url": {
             "type": "string",
-            "description": "The token's permalink (`/proof/<chainId>/<token>`), which opens the project's public site. Append /badge.svg for the embeddable badge."
+            "description": "The token's permalink (`/proof/<chainId>/<token>`), its public Claire Proof page. Append /badge.svg for the embeddable badge."
           },
           "token": {
             "type": "object",
@@ -5175,10 +5161,9 @@
             "additionalProperties": false,
             "required": [
               "x",
-              "telegram",
-              "domain"
+              "telegram"
             ],
-            "description": "Connections the organization made inside Claire: an X account linked by OAuth, a public Telegram chat the Claire bot administers, a custom domain Claire verified. Not on-chain facts.",
+            "description": "Connections the organization made inside Claire: an X account linked by OAuth and a public Telegram chat the Claire bot administers. Not on-chain facts.",
             "properties": {
               "x": {
                 "type": [
@@ -5209,21 +5194,6 @@
                     "type": "string"
                   }
                 }
-              },
-              "domain": {
-                "type": [
-                  "object",
-                  "null"
-                ],
-                "additionalProperties": false,
-                "properties": {
-                  "hostname": {
-                    "type": "string"
-                  },
-                  "url": {
-                    "type": "string"
-                  }
-                }
               }
             }
           },
@@ -5238,9 +5208,6 @@
                 "type": "string"
               },
               "slug": {
-                "type": "string"
-              },
-              "url": {
                 "type": "string"
               }
             }

@@ -107,12 +107,12 @@ Queries are optional. `source` is a stable ID from `sources.list()`. Search retu
 complete provider-history search. People keys come from `people.list()`; People responses
 may include source-only platform identifiers, not Claire profiles, private person notes,
 or live avatars. `chatId` is the **Claire chat UUID** returned by `telegram.chats.list`,
-not Telegram's numeric chat ID. Knowledge IDs include their prefix, such as `docs:<uuid>`;
+not Telegram's numeric chat ID. Knowledge IDs include their prefix, such as `note:<uuid>`;
 pass them unchanged. Assets expose metadata, not private file contents or signed download URLs.
 Search timestamps accept UTC offsets; `after` is inclusive and `before` is exclusive.
 
 ```js
-const { data: matches } = await claire.search({ q: "launch", source: "docs", limit: 20 });
+const { data: matches } = await claire.search({ q: "launch", limit: 20 });
 for (const item of matches.items) console.log(item.sourceId, item.preview);
 const { data: people } = await claire.people.list({ q: "alice", page: 1 });
 if (typeof people[0]?.key === "string") console.log((await claire.people.get(people[0].key)).data);
@@ -187,7 +187,7 @@ client or per call. Request options are always the last argument:
 ```js
 const controller = new AbortController();
 await claire.knowledge.list({ page: 1 }, { timeoutMs: 5_000 });
-await claire.knowledge.get("docs:<uuid>", { offset: 0 }, { signal: controller.signal });
+await claire.knowledge.get("note:<uuid>", { offset: 0 }, { signal: controller.signal });
 ```
 
 Handle 429 according to `retryAfterSeconds`; do not loop on invalid keys or missing scopes.
